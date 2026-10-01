@@ -21,6 +21,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs per la sincronizzazione cloud -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -53,7 +58,6 @@
         }
     </script>
     <style>
-        /* Custom smooth scrolling and layout rules */
         body {
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
@@ -100,7 +104,6 @@
         </div>
 
         <div class="flex items-center space-x-2">
-            <!-- Install PWA Button (Hidden by default until install prompt is ready) -->
             <button id="btn-install" class="hidden bg-sage-400 hover:bg-sage-300 text-forest-dark text-xs sm:text-sm px-3 py-1.5 rounded-lg font-bold transition shadow-sm items-center space-x-1.5">
                 <i class="fa-solid fa-download"></i>
                 <span>Installa App</span>
@@ -118,13 +121,10 @@
 
     <!-- Main App Container -->
     <div class="flex flex-1 overflow-hidden relative">
-
-        <!-- Backdrop for mobile sidebar -->
         <div id="sidebar-backdrop" class="fixed inset-0 bg-black/40 z-30 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"></div>
 
         <!-- Sidebar with vertical date list -->
         <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-sage-200 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-xl md:shadow-none">
-            <!-- Sidebar Header -->
             <div class="p-4 border-b border-sage-100 flex items-center justify-between bg-sage-50/50">
                 <h2 class="font-semibold text-sage-800 flex items-center space-x-2">
                     <i class="fa-regular fa-calendar text-forest"></i>
@@ -135,7 +135,6 @@
                 </button>
             </div>
 
-            <!-- Jump to Month Quick Filter -->
             <div class="p-3 border-b border-sage-100 bg-white">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-sage-600 uppercase tracking-wider">Vai a Mese</span>
@@ -143,27 +142,20 @@
                 </div>
             </div>
 
-            <!-- Vertical date list -->
             <div id="date-list-container" class="sidebar-scroll flex-1 overflow-y-auto p-2 space-y-1">
                 <!-- Dynamically populated via JavaScript -->
             </div>
 
-            <!-- Sidebar Footer with PWA Info -->
             <div class="p-3 border-t border-sage-100 bg-sage-50/50 text-xs text-sage-600 text-center flex flex-col space-y-1">
                 <span>Scorri per navigare tra i giorni</span>
-                <span class="text-[10px] text-sage-400">PWA Attiva • Pronto offline</span>
+                <span class="text-[10px] text-sage-400">Cloud Sync & PWA Attive</span>
             </div>
         </aside>
 
-        <!-- Main Content Area: Horizontal Swiping Pages -->
+        <!-- Main Content Area -->
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-sage-50 relative">
-            
-            <!-- Horizontal Pages Viewport -->
-            <div id="pages-viewport" class="flex-1 flex overflow-x-auto hide-scrollbar snap-x snap-mandatory h-full w-full">
-                <!-- Pages are injected dynamically here -->
-            </div>
+            <div id="pages-viewport" class="flex-1 flex overflow-x-auto hide-scrollbar snap-x snap-mandatory h-full w-full"></div>
 
-            <!-- Floating Navigation Controls for Desktop/Tablet -->
             <div class="absolute bottom-6 right-6 hidden sm:flex items-center space-x-2 bg-white/90 backdrop-blur-md shadow-lg border border-sage-200 rounded-full px-4 py-2 z-10">
                 <button id="btn-prev" class="w-9 h-9 rounded-full bg-sage-100 hover:bg-forest hover:text-white text-sage-700 flex items-center justify-center transition shadow-sm" title="Giorno precedente">
                     <i class="fa-solid fa-chevron-left text-sm"></i>
@@ -176,38 +168,50 @@
         </main>
     </div>
 
-    <!-- Application Logic & PWA Service Worker Registration -->
     <script>
+        // ==========================================
+        // CONFIGURAZIONE FIREBASE (Sostituisci l'API Key)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXVvsjzqSyx4QSqZHgVj8Lx8p94XtXWDc", // <--- PRENDI QUESTA DALLE IMPOSTAZIONI DEL TUO PROGETTO FIREBASE
+            authDomain: "agenda-riccardo-589af.firebaseapp.com",
+            databaseURL: "https://agenda-riccardo-589af-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "agenda-riccardo-589af",
+            storageBucket: "agenda-riccardo-589af.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        let db = null;
+        let useCloud = false;
+        let globalAgendaData = {}; // Struttura dati remoti/locali
+
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "INSERISCI_QUI_LA_TUA_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                useCloud = true;
+                console.log("Firebase connesso con successo.");
+            }
+        } catch (e) {
+            console.warn("Errore connessione Firebase, fallback su localStorage.", e);
+        }
+
+        // Service Worker PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Register a lightweight blob service worker for full standalone caching & offline capability
                 const swCode = `
-                    const CACHE_NAME = 'verde-agenda-v1';
-                    self.addEventListener('install', (e) => {
-                        self.skipWaiting();
-                    });
-                    self.addEventListener('activate', (e) => {
-                        e.waitUntil(clients.claim());
-                    });
-                    self.addEventListener('fetch', (e) => {
-                        e.respondWith(
-                            fetch(e.request).catch(() => caches.match(e.request))
-                        );
-                    });
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+                    self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'text/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
-                    .then(() => console.log('PWA Service Worker registrato con successo.'))
-                    .catch(err => console.log('Registrazione Service Worker fallita:', err));
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log('SW error', err));
             });
         }
 
-        // PWA Install Prompt handling
         let deferredPrompt;
         const btnInstall = document.getElementById('btn-install');
-
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -219,16 +223,8 @@
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('Utente ha accettato l installazione PWA');
-            }
             deferredPrompt = null;
             btnInstall.classList.add('hidden');
-        });
-
-        window.addEventListener('appinstalled', () => {
-            btnInstall.classList.add('hidden');
-            console.log('VerdeAgenda installata con successo.');
         });
 
         // State Management
@@ -239,7 +235,6 @@
         const daysWindowAfter = 365;
         let activeDateString = formatDateKey(currentDate);
 
-        // DOM Elements
         const pagesViewport = document.getElementById('pages-viewport');
         const dateListContainer = document.getElementById('date-list-container');
         const sidebar = document.getElementById('sidebar');
@@ -253,7 +248,6 @@
         const monthPicker = document.getElementById('month-picker');
         const saveIndicator = document.getElementById('save-indicator');
 
-        // Helper: Format Date to YYYY-MM-DD key for LocalStorage
         function formatDateKey(date) {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -261,20 +255,22 @@
             return `${year}-${month}-${day}`;
         }
 
-        // Helper: Format Date for sidebar display
         function formatSidebarDate(date) {
-            const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
-            return date.toLocaleDateString('it-IT', options);
+            return date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
         }
 
         function initApp() {
-            renderSidebarDates();
-            renderPages();
-            
-            scrollToDate(activeDateString, false);
-            highlightSidebarItem(activeDateString);
+            if (useCloud && db) {
+                // Sincronizzazione in tempo reale con Firebase
+                db.ref('agendaData').on('value', (snapshot) => {
+                    globalAgendaData = snapshot.val() || {};
+                    refreshUI();
+                });
+            } else {
+                loadLocalData();
+                refreshUI();
+            }
 
-            // Event Listeners
             sidebarToggle.addEventListener('click', toggleSidebar);
             sidebarClose.addEventListener('click', toggleSidebar);
             sidebarBackdrop.addEventListener('click', toggleSidebar);
@@ -310,6 +306,29 @@
             });
         }
 
+        function refreshUI() {
+            renderSidebarDates();
+            renderPages();
+            scrollToDate(activeDateString, false);
+            highlightSidebarItem(activeDateString);
+        }
+
+        function loadLocalData() {
+            globalAgendaData = {};
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - daysWindowBefore);
+            const totalDays = daysWindowBefore + daysWindowAfter;
+            for (let i = 0; i <= totalDays; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                const dateKey = formatDateKey(d);
+                const item = localStorage.getItem(`agenda_${dateKey}`);
+                if (item) {
+                    try { globalAgendaData[dateKey] = JSON.parse(item); } catch(e) {}
+                }
+            }
+        }
+
         function toggleSidebar() {
             const isOpen = sidebar.classList.contains('translate-x-0');
             if (isOpen) {
@@ -339,7 +358,7 @@
                 const btn = document.createElement('button');
                 btn.className = `w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition flex items-center justify-between group sidebar-item-${dateKey}`;
                 
-                const savedData = loadDayData(dateKey);
+                const savedData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
                 const hasNotes = savedData.notes && savedData.notes.trim().length > 0;
                 const hasTasks = savedData.tasks && savedData.tasks.some(t => !t.completed);
 
@@ -360,9 +379,7 @@
                     activeDateString = dateKey;
                     scrollToDate(dateKey, true);
                     highlightSidebarItem(dateKey);
-                    if (window.innerWidth < 768) {
-                        toggleSidebar();
-                    }
+                    if (window.innerWidth < 768) toggleSidebar();
                 });
 
                 fragment.appendChild(btn);
@@ -401,12 +418,11 @@
                 pageDiv.className = 'day-page h-full flex-shrink-0 snap-start overflow-y-auto p-4 sm:p-6 md:p-8 flex justify-center';
                 pageDiv.setAttribute('data-date', dateKey);
 
-                const dayData = loadDayData(dateKey);
+                const dayData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
                 const isToday = dateKey === formatDateKey(new Date());
 
                 pageDiv.innerHTML = `
                     <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-sage-200 flex flex-col overflow-hidden mb-12">
-                        <!-- Card Header -->
                         <div class="bg-gradient-to-r from-forest to-forest-light text-white p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden">
                             <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl pointer-events-none">
                                 <i class="fa-solid fa-leaf"></i>
@@ -420,9 +436,7 @@
                             </div>
                         </div>
 
-                        <!-- Card Body -->
                         <div class="p-5 sm:p-6 flex-1 flex flex-col space-y-6">
-                            <!-- Tasks Section -->
                             <div>
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
@@ -442,7 +456,6 @@
 
                             <hr class="border-sage-100">
 
-                            <!-- Notes Section -->
                             <div class="flex-1 flex flex-col">
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
@@ -459,30 +472,31 @@
                     </div>
                 `;
 
-                setupPageInteractions(pageDiv, dateKey, dayData);
+                setupPageInteractions(pageDiv, dateKey);
                 fragment.appendChild(pageDiv);
             }
 
             pagesViewport.appendChild(fragment);
         }
 
-        function setupPageInteractions(pageElement, dateKey, dayData) {
+        function setupPageInteractions(pageElement, dateKey) {
             const textarea = pageElement.querySelector('.notes-textarea');
             const taskList = pageElement.querySelector('.task-list');
             const taskInput = pageElement.querySelector('.task-input');
             const addTaskBtn = pageElement.querySelector('.add-task-btn');
             const taskCount = pageElement.querySelector('.task-count');
 
-            renderTasks(taskList, taskCount, dayData.tasks || [], dateKey);
+            const currentData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
+            renderTasks(taskList, taskCount, currentData.tasks || [], dateKey);
 
             let saveTimeout;
             textarea.addEventListener('input', () => {
                 showSaveStatus('Salvataggio...', 'text-sage-500');
                 clearTimeout(saveTimeout);
                 saveTimeout = setTimeout(() => {
-                    const data = loadDayData(dateKey);
-                    data.notes = textarea.value;
-                    saveDayData(dateKey, data);
+                    if (!globalAgendaData[dateKey]) globalAgendaData[dateKey] = { notes: '', tasks: [] };
+                    globalAgendaData[dateKey].notes = textarea.value;
+                    saveDayData(dateKey, globalAgendaData[dateKey]);
                     showSaveStatus('Salvato', 'text-sage-300');
                     updateSidebarBadge(dateKey);
                 }, 500);
@@ -491,12 +505,12 @@
             const handleAddTask = () => {
                 const text = taskInput.value.trim();
                 if (!text) return;
-                const data = loadDayData(dateKey);
-                if (!data.tasks) data.tasks = [];
-                data.tasks.push({ id: Date.now(), text: text, completed: false });
-                saveDayData(dateKey, data);
+                if (!globalAgendaData[dateKey]) globalAgendaData[dateKey] = { notes: '', tasks: [] };
+                if (!globalAgendaData[dateKey].tasks) globalAgendaData[dateKey].tasks = [];
+                globalAgendaData[dateKey].tasks.push({ id: Date.now(), text: text, completed: false });
+                saveDayData(dateKey, globalAgendaData[dateKey]);
                 taskInput.value = '';
-                renderTasks(taskList, taskCount, data.tasks, dateKey);
+                renderTasks(taskList, taskCount, globalAgendaData[dateKey].tasks, dateKey);
                 updateSidebarBadge(dateKey);
             };
 
@@ -533,20 +547,22 @@
 
                 const checkbox = taskRow.querySelector('.task-checkbox');
                 checkbox.addEventListener('change', () => {
-                    const data = loadDayData(dateKey);
-                    data.tasks[index].completed = checkbox.checked;
-                    saveDayData(dateKey, data);
-                    renderTasks(container, counterEl, data.tasks, dateKey);
-                    updateSidebarBadge(dateKey);
+                    if (globalAgendaData[dateKey] && globalAgendaData[dateKey].tasks[index]) {
+                        globalAgendaData[dateKey].tasks[index].completed = checkbox.checked;
+                        saveDayData(dateKey, globalAgendaData[dateKey]);
+                        renderTasks(container, counterEl, globalAgendaData[dateKey].tasks, dateKey);
+                        updateSidebarBadge(dateKey);
+                    }
                 });
 
                 const deleteBtn = taskRow.querySelector('.delete-task-btn');
                 deleteBtn.addEventListener('click', () => {
-                    const data = loadDayData(dateKey);
-                    data.tasks.splice(index, 1);
-                    saveDayData(dateKey, data);
-                    renderTasks(container, counterEl, data.tasks, dateKey);
-                    updateSidebarBadge(dateKey);
+                    if (globalAgendaData[dateKey] && globalAgendaData[dateKey].tasks[index]) {
+                        globalAgendaData[dateKey].tasks.splice(index, 1);
+                        saveDayData(dateKey, globalAgendaData[dateKey]);
+                        renderTasks(container, counterEl, globalAgendaData[dateKey].tasks, dateKey);
+                        updateSidebarBadge(dateKey);
+                    }
                 });
 
                 container.appendChild(taskRow);
@@ -556,7 +572,7 @@
         function updateSidebarBadge(dateKey) {
             const btn = document.querySelector(`.sidebar-item-${dateKey}`);
             if (!btn) return;
-            const data = loadDayData(dateKey);
+            const data = globalAgendaData[dateKey] || { notes: '', tasks: [] };
             const hasNotes = data.notes && data.notes.trim().length > 0;
             const hasTasks = data.tasks && data.tasks.some(t => !t.completed);
 
@@ -572,20 +588,11 @@
             }
         }
 
-        function loadDayData(dateKey) {
-            try {
-                const item = localStorage.getItem(`agenda_${dateKey}`);
-                return item ? JSON.parse(item) : { notes: '', tasks: [] };
-            } catch (e) {
-                return { notes: '', tasks: [] };
-            }
-        }
-
         function saveDayData(dateKey, data) {
-            try {
+            if (useCloud && db) {
+                db.ref(`agendaData/${dateKey}`).set(data).catch(err => console.error("Errore salvataggio cloud:", err));
+            } else {
                 localStorage.setItem(`agenda_${dateKey}`, JSON.stringify(data));
-            } catch (e) {
-                console.error("Errore salvataggio localStorage", e);
             }
         }
 
@@ -648,6 +655,7 @@
         }
 
         function escapeHTML(str) {
+            if (!str) return '';
             return str.replace(/[&<>'"]/g, 
                 tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
             );
