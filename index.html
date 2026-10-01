@@ -3,61 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Agenda Giornaliera Verde</title>
-    <meta name="description" content="Agenda giornaliera semplice ed elegante con note e attività, tema verde naturale.">
+    <title>Agenda Giornaliera</title>
     
-    <!-- PWA Meta Tags for Android & iOS -->
+    <!-- PWA Meta Tags & Theme Color -->
     <meta name="theme-color" content="#274e31">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="VerdeAgenda">
-    
-    <!-- Dynamic Web Manifest link -->
-    <link id="pwa-manifest" rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Agenda%20Giornaliera%20Verde%22%2C%22short_name%22%3A%22VerdeAgenda%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f7f4%22%2C%22theme_color%22%3A%22%23274e31%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F192x192%2F274e31%2Fffffff%3Ftext%3DVA%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F512x512%2F274e31%2Fffffff%3Ftext%3DVA%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+    <meta name="apple-mobile-web-app-title" content="Agenda">
 
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS per un design pulito e moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        sage: {
-                            50: '#f4f7f4',
-                            100: '#e5ebe5',
-                            200: '#c8d7c8',
-                            300: '#a3bca3',
-                            400: '#759b75',
-                            500: '#527c52',
-                            600: '#406340',
-                            700: '#345034',
-                            800: '#2c412c',
-                            900: '#253525',
-                            950: '#131d13',
-                        },
-                        forest: {
-                            light: '#3e6b48',
-                            DEFAULT: '#274e31',
-                            dark: '#1b3521'
+                        agenda: {
+                            dark: '#1b3622',
+                            primary: '#274e31',
+                            light: '#527c52',
+                            bg: '#f4f7f4',
+                            card: '#ffffff',
+                            accent: '#82a582'
                         }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
+
+    <!-- FontAwesome per le icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <style>
-        /* Custom smooth scrolling and layout rules */
         body {
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: none;
+            touch-action: pan-y;
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
@@ -66,594 +51,470 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        .sidebar-scroll::-webkit-scrollbar {
-            width: 4px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.03);
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-            background: #a3bca3;
-            border-radius: 4px;
-        }
-        .day-page {
-            flex: 0 0 100%;
-            width: 100%;
-            box-sizing: border-box;
-        }
     </style>
 </head>
-<body class="bg-sage-50 text-sage-900 h-screen w-screen overflow-hidden flex flex-col">
+<body class="bg-agenda-bg text-gray-800 h-screen w-screen overflow-hidden flex flex-col">
 
-    <!-- Top Navigation Header -->
-    <header class="bg-forest text-white shadow-md z-20 flex items-center justify-between px-4 py-3 shrink-0">
+    <!-- HEADER SUPERIORE -->
+    <header class="bg-agenda-primary text-white shadow-md px-4 py-3 flex items-center justify-between z-20 shrink-0">
         <div class="flex items-center space-x-3">
-            <button id="sidebar-toggle" class="md:hidden text-white p-2 rounded-lg hover:bg-forest-light transition">
-                <i class="fa-solid fa-bars text-xl"></i>
+            <button id="sidebarToggle" class="md:hidden text-white focus:outline-none text-xl p-1">
+                <i class="fa-solid fa-bars"></i>
             </button>
-            <div class="flex items-center space-x-2">
-                <div class="bg-sage-400 text-forest-dark p-2 rounded-xl flex items-center justify-center font-bold shadow-inner">
-                    <i class="fa-solid fa-leaf"></i>
-                </div>
-                <h1 class="font-bold text-lg tracking-tight">VerdeAgenda</h1>
-            </div>
+            <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days"></i> Agenda Personale
+            </h1>
         </div>
-
-        <div class="flex items-center space-x-2">
-            <!-- Install PWA Button (Hidden by default until install prompt is ready) -->
-            <button id="btn-install" class="hidden bg-sage-400 hover:bg-sage-300 text-forest-dark text-xs sm:text-sm px-3 py-1.5 rounded-lg font-bold transition shadow-sm items-center space-x-1.5">
-                <i class="fa-solid fa-download"></i>
-                <span>Installa App</span>
+        <div class="flex items-center gap-3">
+            <span id="syncStatus" class="text-xs bg-agenda-light px-2 py-1 rounded-full text-white flex items-center gap-1">
+                <i class="fa-solid fa-cloud"></i> <span id="syncText">Connessione...</span>
+            </span>
+            <button id="installBtn" class="hidden bg-white text-agenda-primary text-xs font-semibold px-3 py-1.5 rounded-lg shadow hover:bg-gray-100 transition">
+                <i class="fa-solid fa-download"></i> Installa App
             </button>
-            <button id="btn-today" class="bg-forest-light hover:bg-sage-600 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center space-x-1.5">
-                <i class="fa-solid fa-calendar-day"></i>
-                <span>Oggi</span>
-            </button>
-            <div id="save-indicator" class="text-xs text-sage-200 hidden sm:flex items-center space-x-1 bg-forest-dark px-2.5 py-1 rounded-full">
-                <i class="fa-solid fa-check text-sage-300"></i>
-                <span>Salvato</span>
-            </div>
         </div>
     </header>
 
-    <!-- Main App Container -->
-    <div class="flex flex-1 overflow-hidden relative">
+    <!-- CORPO PRINCIPALE -->
+    <div class="flex flex-1 relative overflow-hidden">
 
-        <!-- Backdrop for mobile sidebar -->
-        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/40 z-30 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"></div>
+        <!-- OVERLAY PER MOBILE SIDEBAR -->
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden transition-opacity"></div>
 
-        <!-- Sidebar with vertical date list -->
-        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-sage-200 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-xl md:shadow-none">
-            <!-- Sidebar Header -->
-            <div class="p-4 border-b border-sage-100 flex items-center justify-between bg-sage-50/50">
-                <h2 class="font-semibold text-sage-800 flex items-center space-x-2">
-                    <i class="fa-regular fa-calendar text-forest"></i>
-                    <span>Seleziona Data</span>
-                </h2>
-                <button id="sidebar-close" class="md:hidden text-sage-500 hover:text-sage-800 p-1">
-                    <i class="fa-solid fa-xmark text-lg"></i>
-                </button>
+        <!-- COLONNA LATERALE A SINISTRA (DATE) -->
+        <aside id="sidebar" class="absolute md:relative inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-lg md:shadow-none shrink-0">
+            <div class="p-3 border-b border-gray-100 flex items-center justify-between bg-agenda-bg">
+                <span class="font-semibold text-agenda-dark text-sm"><i class="fa-regular fa-calendar"></i> Seleziona Data</span>
+                <button id="todayBtn" class="text-xs bg-agenda-primary text-white px-2.5 py-1 rounded shadow hover:bg-agenda-dark transition">Oggi</button>
             </div>
-
-            <!-- Jump to Month Quick Filter -->
-            <div class="p-3 border-b border-sage-100 bg-white">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold text-sage-600 uppercase tracking-wider">Vai a Mese</span>
-                    <input type="month" id="month-picker" class="text-xs bg-sage-50 border border-sage-200 rounded px-2 py-1 text-sage-800 focus:outline-none focus:ring-1 focus:ring-forest">
-                </div>
-            </div>
-
-            <!-- Vertical date list -->
-            <div id="date-list-container" class="sidebar-scroll flex-1 overflow-y-auto p-2 space-y-1">
-                <!-- Dynamically populated via JavaScript -->
-            </div>
-
-            <!-- Sidebar Footer with PWA Info -->
-            <div class="p-3 border-t border-sage-100 bg-sage-50/50 text-xs text-sage-600 text-center flex flex-col space-y-1">
-                <span>Scorri per navigare tra i giorni</span>
-                <span class="text-[10px] text-sage-400">PWA Attiva • Pronto offline</span>
+            <!-- Lista verticale delle date -->
+            <div id="datesList" class="flex-1 overflow-y-auto p-2 space-y-1 hide-scrollbar">
+                <!-- Generato via JavaScript -->
             </div>
         </aside>
 
-        <!-- Main Content Area: Horizontal Swiping Pages -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden bg-sage-50 relative">
-            
-            <!-- Horizontal Pages Viewport -->
-            <div id="pages-viewport" class="flex-1 flex overflow-x-auto hide-scrollbar snap-x snap-mandatory h-full w-full">
-                <!-- Pages are injected dynamically here -->
-            </div>
+        <!-- AREA CENTRALE PAGINA GIORNALIERA (SWIPE ORIZZONTALE) -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-agenda-bg relative" id="swipeContainer">
+            <div id="pageCard" class="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-w-4xl mx-auto w-full transition-transform duration-200">
+                
+                <!-- INTESTAZIONE GIORNO CORRENTE -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4 flex items-center justify-between shrink-0">
+                    <div>
+                        <h2 id="currentDayTitle" class="text-xl md:text-2xl font-bold text-agenda-dark capitalize">--</h2>
+                        <p id="currentDaySubtitle" class="text-xs md:text-sm text-gray-500">--</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="prevDayBtn" class="p-2 rounded-xl bg-gray-100 text-agenda-dark hover:bg-agenda-primary hover:text-white transition">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button id="nextDayBtn" class="p-2 rounded-xl bg-gray-100 text-agenda-dark hover:bg-agenda-primary hover:text-white transition">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Floating Navigation Controls for Desktop/Tablet -->
-            <div class="absolute bottom-6 right-6 hidden sm:flex items-center space-x-2 bg-white/90 backdrop-blur-md shadow-lg border border-sage-200 rounded-full px-4 py-2 z-10">
-                <button id="btn-prev" class="w-9 h-9 rounded-full bg-sage-100 hover:bg-forest hover:text-white text-sage-700 flex items-center justify-center transition shadow-sm" title="Giorno precedente">
-                    <i class="fa-solid fa-chevron-left text-sm"></i>
-                </button>
-                <span id="current-page-label" class="text-xs font-semibold text-sage-800 px-2 min-w-[110px] text-center">Data Odierna</span>
-                <button id="btn-next" class="w-9 h-9 rounded-full bg-sage-100 hover:bg-forest hover:text-white text-sage-700 flex items-center justify-center transition shadow-sm" title="Giorno successivo">
-                    <i class="fa-solid fa-chevron-right text-sm"></i>
-                </button>
+                <!-- CONTENUTO GIORNALIERO: NOTE E ATTIVITÀ -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 pb-16">
+                    
+                    <!-- BOX NOTE / APPUNTI -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col">
+                        <label class="text-sm font-semibold text-agenda-dark mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-agenda-light"></i> Appunti del Giorno
+                        </label>
+                        <textarea id="dayNotes" placeholder="Scrivi qui i tuoi appunti, promemoria o note..." class="w-full flex-1 p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-agenda-primary resize-none text-sm"></textarea>
+                    </div>
+
+                    <!-- BOX TO-DO LIST (ATTIVITÀ) -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-sm font-semibold text-agenda-dark flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-agenda-light"></i> Attività & Task
+                            </label>
+                            <span id="taskCounter" class="text-xs text-gray-400">0 completate</span>
+                        </div>
+                        
+                        <!-- Input Nuova Attività -->
+                        <div class="flex gap-2 mb-3">
+                            <input type="text" id="newTaskInput" placeholder="Aggiungi una nuova attività..." class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-agenda-primary">
+                            <button id="addTaskBtn" class="bg-agenda-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-agenda-dark transition">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+
+                        <!-- Lista Attività -->
+                        <div id="taskList" class="flex-1 overflow-y-auto space-y-2 pr-1 hide-scrollbar">
+                            <!-- Inserite dinamicamente -->
+                        </div>
+                    </div>
+
+                </div>
+
             </div>
         </main>
+
     </div>
 
-    <!-- Application Logic & PWA Service Worker Registration -->
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Register a lightweight blob service worker for full standalone caching & offline capability
-                const swCode = `
-                    const CACHE_NAME = 'verde-agenda-v1';
-                    self.addEventListener('install', (e) => {
-                        self.skipWaiting();
-                    });
-                    self.addEventListener('activate', (e) => {
-                        e.waitUntil(clients.claim());
-                    });
-                    self.addEventListener('fetch', (e) => {
-                        e.respondWith(
-                            fetch(e.request).catch(() => caches.match(e.request))
-                        );
-                    });
-                `;
-                const blob = new Blob([swCode], { type: 'text/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
-                    .then(() => console.log('PWA Service Worker registrato con successo.'))
-                    .catch(err => console.log('Registrazione Service Worker fallita:', err));
+        // ==========================================
+        // CONFIGURAZIONE FIREBASE (Inserisci i tuoi dati)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "INSERISCI_API_KEY",
+            authDomain: "INSERISCI_AUTH_DOMAIN",
+            databaseURL: "INSERISCI_DATABASE_URL", // es. https://agenda-riccardo-default-rtdb.europe-west1.firebasedatabase.app
+            projectId: "INSERISCI_PROJECT_ID",
+            storageBucket: "INSERISCI_STORAGE_BUCKET",
+            messagingSenderId: "INSERISCI_MESSAGING_SENDER_ID",
+            appId: "INSERISCI_APP_ID"
+        };
+
+        let db = null;
+        let useCloud = false;
+
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "INSERISCI_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                useCloud = true;
+                document.getElementById('syncText').innerText = "Cloud Attivo";
+            } else {
+                document.getElementById('syncText').innerText = "Modo Locale";
+            }
+        } catch (e) {
+            console.warn("Firebase non configurato, uso localStorage.", e);
+            document.getElementById('syncText').innerText = "Solo Locale";
+        }
+
+        // ==========================================
+        // GESTIONE AGENDA & STATO
+        // ==========================================
+        const today = new Date();
+        let currentDateStr = formatDateKey(today);
+        let agendaData = {}; // Struttura: { "YYYY-MM-DD": { notes: "", tasks: [] } }
+
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // Inizializza date (un anno prima e un anno dopo)
+        const datesListEl = document.getElementById('datesList');
+        const dayNotesEl = document.getElementById('dayNotes');
+        const taskListEl = document.getElementById('taskList');
+        const newTaskInputEl = document.getElementById('newTaskInput');
+        const addTaskBtnEl = document.getElementById('addTaskBtn');
+
+        let allDates = [];
+
+        function generateDatesRange() {
+            datesListEl.innerHTML = '';
+            allDates = [];
+            const startDate = new Date();
+            startDate.setFullYear(today.getFullYear() - 1);
+            
+            for (let i = 0; i < 730; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                const dStr = formatDateKey(d);
+                allDates.push(dStr);
+
+                const item = document.createElement('div');
+                item.className = `date-item px-3 py-2.5 rounded-xl cursor-pointer text-sm flex items-center justify-between transition ${dStr === currentDateStr ? 'bg-agenda-primary text-white font-semibold shadow' : 'hover:bg-gray-100 text-gray-700'}`;
+                item.dataset.date = dStr;
+
+                const options = { weekday: 'short', day: 'numeric', month: 'short' };
+                item.innerHTML = `<span>${d.toLocaleDateString('it-IT', options)}</span><span class="has-content-dot text-xs ${hasData(dStr) ? 'opacity-100' : 'opacity-0'}"><i class="fa-solid fa-circle text-[8px] ${dStr === currentDateStr ? 'text-white' : 'text-agenda-light'}"></i></span>`;
+
+                item.addEventListener('click', () => {
+                    changeDate(dStr);
+                    toggleSidebar(false);
+                });
+
+                datesListEl.appendChild(item);
+            }
+        }
+
+        function hasData(dateStr) {
+            const data = agendaData[dateStr];
+            return data && ((data.notes && data.notes.trim() !== '') || (data.tasks && data.tasks.length > 0));
+        }
+
+        function updateSidebarActive() {
+            document.querySelectorAll('.date-item').forEach(el => {
+                const dStr = el.dataset.date;
+                const dot = el.querySelector('.has-content-dot');
+                if (hasData(dStr)) {
+                    dot.classList.remove('opacity-0');
+                    dot.classList.add('opacity-100');
+                } else {
+                    dot.classList.remove('opacity-100');
+                    dot.classList.add('opacity-0');
+                }
+
+                if (dStr === currentDateStr) {
+                    el.className = "date-item px-3 py-2.5 rounded-xl cursor-pointer text-sm flex items-center justify-between transition bg-agenda-primary text-white font-semibold shadow";
+                    const iconDot = dot.querySelector('i');
+                    iconDot.className = "fa-solid fa-circle text-[8px] text-white";
+                } else {
+                    el.className = "date-item px-3 py-2.5 rounded-xl cursor-pointer text-sm flex items-center justify-between transition hover:bg-gray-100 text-gray-700";
+                    const iconDot = dot.querySelector('i');
+                    iconDot.className = "fa-solid fa-circle text-[8px] text-agenda-light";
+                }
             });
         }
 
-        // PWA Install Prompt handling
-        let deferredPrompt;
-        const btnInstall = document.getElementById('btn-install');
+        function scrollToActiveDate() {
+            const activeEl = document.querySelector(`.date-item[data-date="${currentDateStr}"]`);
+            if (activeEl) {
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
 
+        function loadDayData() {
+            const [y, m, d] = currentDateStr.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
+
+            const optionsTitle = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('currentDayTitle').innerText = dateObj.toLocaleDateString('it-IT', optionsTitle);
+            document.getElementById('currentDaySubtitle').innerText = `Gestione impegni e appunti`;
+
+            const data = agendaData[currentDateStr] || { notes: '', tasks: [] };
+            dayNotesEl.value = data.notes || '';
+            renderTasks(data.tasks || []);
+            updateSidebarActive();
+        }
+
+        function changeDate(newDateStr) {
+            saveCurrentDataToMemory();
+            currentDateStr = newDateStr;
+            loadDayData();
+            scrollToActiveDate();
+        }
+
+        function saveCurrentDataToMemory() {
+            if (!agendaData[currentDateStr]) {
+                agendaData[currentDateStr] = { notes: '', tasks: [] };
+            }
+            agendaData[currentDateStr].notes = dayNotesEl.value;
+            syncDataStorage();
+        }
+
+        // ==========================================
+        // GESTIONE TASK / ATTIVITÀ
+        // ==========================================
+        function renderTasks(tasks) {
+            taskListEl.innerHTML = '';
+            let completedCount = 0;
+
+            tasks.forEach((task, index) => {
+                if (task.completed) completedCount++;
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2.5 rounded-xl border transition ${task.completed ? 'bg-gray-50 border-gray-200 text-gray-400 line-through' : 'bg-white border-gray-100 text-gray-700 shadow-sm'}`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-2.5 overflow-hidden">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} class="w-4 h-4 accent-agenda-primary rounded cursor-pointer" onchange="toggleTask(${index})">
+                        <span class="text-sm truncate">${escapeHtml(task.text)}</span>
+                    </div>
+                    <button onclick="deleteTask(${index})" class="text-gray-400 hover:text-red-500 p-1 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                `;
+                taskListEl.appendChild(div);
+            });
+
+            document.getElementById('taskCounter').innerText = `${completedCount}/${tasks.length} completate`;
+        }
+
+        function addTask() {
+            const text = newTaskInputEl.value.trim();
+            if (!text) return;
+
+            if (!agendaData[currentDateStr]) {
+                agendaData[currentDateStr] = { notes: '', tasks: [] };
+            }
+            agendaData[currentDateStr].tasks.push({ text: text, completed: false });
+            newTaskInputEl.value = '';
+            loadDayData();
+            syncDataStorage();
+        }
+
+        window.toggleTask = function(index) {
+            if (agendaData[currentDateStr] && agendaData[currentDateStr].tasks[index]) {
+                agendaData[currentDateStr].tasks[index].completed = !agendaData[currentDateStr].tasks[index].completed;
+                loadDayData();
+                syncDataStorage();
+            }
+        };
+
+        window.deleteTask = function(index) {
+            if (agendaData[currentDateStr] && agendaData[currentDateStr].tasks[index]) {
+                agendaData[currentDateStr].tasks.splice(index, 1);
+                loadDayData();
+                syncDataStorage();
+            }
+        };
+
+        newTaskInputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+        addTaskBtnEl.addEventListener('click', addTask);
+
+        dayNotesEl.addEventListener('input', () => {
+            if (!agendaData[currentDateStr]) {
+                agendaData[currentDateStr] = { notes: '', tasks: [] };
+            }
+            agendaData[currentDateStr].notes = dayNotesEl.value;
+            syncDataStorage();
+            updateSidebarActive();
+        });
+
+        // ==========================================
+        // SINCRONIZZAZIONE DATI (FIREBASE & LOCALSTORAGE)
+        // ==========================================
+        function syncDataStorage() {
+            if (useCloud && db) {
+                db.ref('agendaData').set(agendaData).catch(err => console.error("Errore sync cloud:", err));
+            } else {
+                localStorage.setItem('agenda_riccardo_data', JSON.stringify(agendaData));
+            }
+        }
+
+        function loadInitialData() {
+            if (useCloud && db) {
+                db.ref('agendaData').on('value', (snapshot) => {
+                    const val = snapshot.val();
+                    if (val) {
+                        agendaData = val;
+                    } else {
+                        agendaData = {};
+                    }
+                    loadDayData();
+                });
+            } else {
+                const local = localStorage.getItem('agenda_riccardo_data');
+                if (local) {
+                    try { agendaData = JSON.parse(local); } catch(e) { agendaData = {}; }
+                }
+                loadDayData();
+            }
+        }
+
+        // ==========================================
+        // NAVIGAZIONE & SWIPE ORIZZONTALE
+        // ==========================================
+        document.getElementById('prevDayBtn').addEventListener('click', () => {
+            const idx = allDates.indexOf(currentDateStr);
+            if (idx > 0) changeDate(allDates[idx - 1]);
+        });
+
+        document.getElementById('nextDayBtn').addEventListener('click', () => {
+            const idx = allDates.indexOf(currentDateStr);
+            if (idx < allDates.length - 1) changeDate(allDates[idx + 1]);
+        });
+
+        document.getElementById('todayBtn').addEventListener('click', () => {
+            changeDate(formatDateKey(new Date()));
+        });
+
+        // Gestione Swipe Orizzontale Touch
+        const swipeContainer = document.getElementById('swipeContainer');
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        swipeContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        swipeContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, {passive: true});
+
+        function handleSwipe() {
+            const threshold = 50;
+            if (touchEndX < touchStartX - threshold) {
+                // Swipe a sinistra -> Giorno successivo
+                const idx = allDates.indexOf(currentDateStr);
+                if (idx < allDates.length - 1) changeDate(allDates[idx + 1]);
+            }
+            if (touchEndX > touchStartX + threshold) {
+                // Swipe a destra -> Giorno precedente
+                const idx = allDates.indexOf(currentDateStr);
+                if (idx > 0) changeDate(allDates[idx - 1]);
+            }
+        }
+
+        // Sidebar toggle mobile
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        function toggleSidebar(show) {
+            if (show) {
+                sidebar.classList.remove('-translate-x-full');
+                sidebarOverlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            }
+        }
+
+        sidebarToggle.addEventListener('click', () => toggleSidebar(sidebar.classList.contains('-translate-x-full')));
+        sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // PWA Manifest dinamico e Service Worker
+        const manifestData = {
+            name: "Agenda Personale",
+            short_name: "Agenda",
+            start_url: "./",
+            display: "standalone",
+            background_color: "#f4f7f4",
+            theme_color: "#274e31",
+            icons: [{ src: "https://cdn-icons-png.flaticon.com/512/2693/2693507.png", sizes: "512x512", type: "image/png" }]
+        };
+        const stringManifest = JSON.stringify(manifestData);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const linkManifest = document.createElement('link');
+        linkManifest.rel = 'manifest';
+        linkManifest.href = manifestURL;
+        document.head.appendChild(linkManifest);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+                self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
+                self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+                self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+            `)).catch(err => console.log("SW error", err));
+        }
+
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            btnInstall.classList.remove('hidden');
-            btnInstall.classList.add('flex');
+            installBtn.classList.remove('hidden');
         });
 
-        btnInstall.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('Utente ha accettato l installazione PWA');
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installBtn.classList.add('hidden');
+                }
+                deferredPrompt = null;
             }
-            deferredPrompt = null;
-            btnInstall.classList.add('hidden');
         });
 
-        window.addEventListener('appinstalled', () => {
-            btnInstall.classList.add('hidden');
-            console.log('VerdeAgenda installata con successo.');
-        });
-
-        // State Management
-        let currentDate = new Date();
-        currentDate.setHours(0, 0, 0, 0);
-
-        const daysWindowBefore = 180;
-        const daysWindowAfter = 365;
-        let activeDateString = formatDateKey(currentDate);
-
-        // DOM Elements
-        const pagesViewport = document.getElementById('pages-viewport');
-        const dateListContainer = document.getElementById('date-list-container');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        const sidebarClose = document.getElementById('sidebar-close');
-        const btnToday = document.getElementById('btn-today');
-        const btnPrev = document.getElementById('btn-prev');
-        const btnNext = document.getElementById('btn-next');
-        const currentPageLabel = document.getElementById('current-page-label');
-        const monthPicker = document.getElementById('month-picker');
-        const saveIndicator = document.getElementById('save-indicator');
-
-        // Helper: Format Date to YYYY-MM-DD key for LocalStorage
-        function formatDateKey(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        // Helper: Format Date for sidebar display
-        function formatSidebarDate(date) {
-            const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
-            return date.toLocaleDateString('it-IT', options);
-        }
-
-        function initApp() {
-            renderSidebarDates();
-            renderPages();
-            
-            scrollToDate(activeDateString, false);
-            highlightSidebarItem(activeDateString);
-
-            // Event Listeners
-            sidebarToggle.addEventListener('click', toggleSidebar);
-            sidebarClose.addEventListener('click', toggleSidebar);
-            sidebarBackdrop.addEventListener('click', toggleSidebar);
-            
-            btnToday.addEventListener('click', () => {
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                activeDateString = formatDateKey(today);
-                scrollToDate(activeDateString, true);
-                highlightSidebarItem(activeDateString);
-            });
-
-            btnPrev.addEventListener('click', () => navigatePages(-1));
-            btnNext.addEventListener('click', () => navigatePages(1));
-
-            monthPicker.value = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-            monthPicker.addEventListener('change', (e) => {
-                if (!e.target.value) return;
-                const [year, month] = e.target.value.split('-');
-                const target = new Date(parseInt(year), parseInt(month) - 1, 1);
-                activeDateString = formatDateKey(target);
-                renderPages();
-                scrollToDate(activeDateString, false);
-                highlightSidebarItem(activeDateString);
-            });
-
-            let scrollTimeout;
-            pagesViewport.addEventListener('scroll', () => {
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => {
-                    detectActivePageOnScroll();
-                }, 100);
-            });
-        }
-
-        function toggleSidebar() {
-            const isOpen = sidebar.classList.contains('translate-x-0');
-            if (isOpen) {
-                sidebar.classList.remove('translate-x-0');
-                sidebar.classList.add('-translate-x-full');
-                sidebarBackdrop.classList.add('opacity-0', 'pointer-events-none');
-            } else {
-                sidebar.classList.remove('-translate-x-full');
-                sidebar.classList.add('translate-x-0');
-                sidebarBackdrop.classList.remove('opacity-0', 'pointer-events-none');
-            }
-        }
-
-        function renderSidebarDates() {
-            dateListContainer.innerHTML = '';
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - daysWindowBefore);
-            const totalDays = daysWindowBefore + daysWindowAfter;
-            const fragment = document.createDocumentFragment();
-
-            for (let i = 0; i <= totalDays; i++) {
-                const d = new Date(startDate);
-                d.setDate(startDate.getDate() + i);
-                const dateKey = formatDateKey(d);
-                const isToday = dateKey === formatDateKey(new Date());
-
-                const btn = document.createElement('button');
-                btn.className = `w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition flex items-center justify-between group sidebar-item-${dateKey}`;
-                
-                const savedData = loadDayData(dateKey);
-                const hasNotes = savedData.notes && savedData.notes.trim().length > 0;
-                const hasTasks = savedData.tasks && savedData.tasks.some(t => !t.completed);
-
-                let badgeHtml = '';
-                if (hasNotes || hasTasks) {
-                    badgeHtml = `<span class="w-2 h-2 rounded-full bg-sage-400 group-hover:bg-forest"></span>`;
-                }
-
-                btn.innerHTML = `
-                    <div class="flex items-center space-x-2 truncate">
-                        <span class="w-2 h-2 rounded-full ${isToday ? 'bg-forest ring-4 ring-forest/20' : 'bg-transparent'}"></span>
-                        <span class="text-sage-800 capitalize truncate">${formatSidebarDate(d)}</span>
-                    </div>
-                    ${badgeHtml}
-                `;
-
-                btn.addEventListener('click', () => {
-                    activeDateString = dateKey;
-                    scrollToDate(dateKey, true);
-                    highlightSidebarItem(dateKey);
-                    if (window.innerWidth < 768) {
-                        toggleSidebar();
-                    }
-                });
-
-                fragment.appendChild(btn);
-            }
-            dateListContainer.appendChild(fragment);
-        }
-
-        function highlightSidebarItem(dateKey) {
-            document.querySelectorAll('#date-list-container button').forEach(el => {
-                el.classList.remove('bg-sage-200/70', 'font-semibold', 'text-forest');
-            });
-            const activeBtn = document.querySelector(`.sidebar-item-${dateKey}`);
-            if (activeBtn) {
-                activeBtn.classList.add('bg-sage-200/70', 'font-semibold', 'text-forest');
-                activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-
-            const [y, m, d] = dateKey.split('-');
-            const dateObj = new Date(y, m - 1, d);
-            currentPageLabel.textContent = dateObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
-        }
-
-        function renderPages() {
-            pagesViewport.innerHTML = '';
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - daysWindowBefore);
-            const totalDays = daysWindowBefore + daysWindowAfter;
-            const fragment = document.createDocumentFragment();
-
-            for (let i = 0; i <= totalDays; i++) {
-                const d = new Date(startDate);
-                d.setDate(startDate.getDate() + i);
-                const dateKey = formatDateKey(d);
-
-                const pageDiv = document.createElement('div');
-                pageDiv.className = 'day-page h-full flex-shrink-0 snap-start overflow-y-auto p-4 sm:p-6 md:p-8 flex justify-center';
-                pageDiv.setAttribute('data-date', dateKey);
-
-                const dayData = loadDayData(dateKey);
-                const isToday = dateKey === formatDateKey(new Date());
-
-                pageDiv.innerHTML = `
-                    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-sage-200 flex flex-col overflow-hidden mb-12">
-                        <!-- Card Header -->
-                        <div class="bg-gradient-to-r from-forest to-forest-light text-white p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden">
-                            <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl pointer-events-none">
-                                <i class="fa-solid fa-leaf"></i>
-                            </div>
-                            <div class="flex justify-between items-start z-10">
-                                <div>
-                                    <span class="text-xs uppercase tracking-widest text-sage-200 font-medium">${d.toLocaleDateString('it-IT', { weekday: 'long' })}</span>
-                                    <h2 class="text-2xl sm:text-3xl font-bold mt-0.5">${d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</h2>
-                                </div>
-                                ${isToday ? '<span class="bg-sage-400 text-forest-dark text-xs font-bold px-3 py-1 rounded-full shadow-sm">Oggi</span>' : ''}
-                            </div>
-                        </div>
-
-                        <!-- Card Body -->
-                        <div class="p-5 sm:p-6 flex-1 flex flex-col space-y-6">
-                            <!-- Tasks Section -->
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
-                                        <i class="fa-solid fa-list-check text-forest"></i>
-                                        <span>Attività del Giorno</span>
-                                    </h3>
-                                    <span class="text-xs text-sage-500 task-count">0 completate</span>
-                                </div>
-                                <div class="task-list space-y-2 mb-3"></div>
-                                <div class="flex items-center space-x-2">
-                                    <input type="text" placeholder="Aggiungi una nuova attività..." class="task-input flex-1 bg-sage-50 border border-sage-200 rounded-xl px-4 py-2.5 text-sm text-sage-900 focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition">
-                                    <button class="add-task-btn bg-forest hover:bg-forest-light text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm flex items-center justify-center">
-                                        <i class="fa-solid fa-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <hr class="border-sage-100">
-
-                            <!-- Notes Section -->
-                            <div class="flex-1 flex flex-col">
-                                <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
-                                        <i class="fa-solid fa-pen-nib text-forest"></i>
-                                        <span>Note e Appunti</span>
-                                    </h3>
-                                    <span class="text-xs text-sage-400 font-normal">Salvataggio automatico</span>
-                                </div>
-                                <textarea 
-                                    class="notes-textarea w-full flex-1 min-h-[180px] bg-sage-50/50 border border-sage-200 rounded-xl p-4 text-sm text-sage-900 focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition resize-y leading-relaxed" 
-                                    placeholder="Scrivi qui i tuoi appunti, riflessioni o impegni per la giornata...">${escapeHTML(dayData.notes || '')}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                setupPageInteractions(pageDiv, dateKey, dayData);
-                fragment.appendChild(pageDiv);
-            }
-
-            pagesViewport.appendChild(fragment);
-        }
-
-        function setupPageInteractions(pageElement, dateKey, dayData) {
-            const textarea = pageElement.querySelector('.notes-textarea');
-            const taskList = pageElement.querySelector('.task-list');
-            const taskInput = pageElement.querySelector('.task-input');
-            const addTaskBtn = pageElement.querySelector('.add-task-btn');
-            const taskCount = pageElement.querySelector('.task-count');
-
-            renderTasks(taskList, taskCount, dayData.tasks || [], dateKey);
-
-            let saveTimeout;
-            textarea.addEventListener('input', () => {
-                showSaveStatus('Salvataggio...', 'text-sage-500');
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => {
-                    const data = loadDayData(dateKey);
-                    data.notes = textarea.value;
-                    saveDayData(dateKey, data);
-                    showSaveStatus('Salvato', 'text-sage-300');
-                    updateSidebarBadge(dateKey);
-                }, 500);
-            });
-
-            const handleAddTask = () => {
-                const text = taskInput.value.trim();
-                if (!text) return;
-                const data = loadDayData(dateKey);
-                if (!data.tasks) data.tasks = [];
-                data.tasks.push({ id: Date.now(), text: text, completed: false });
-                saveDayData(dateKey, data);
-                taskInput.value = '';
-                renderTasks(taskList, taskCount, data.tasks, dateKey);
-                updateSidebarBadge(dateKey);
-            };
-
-            addTaskBtn.addEventListener('click', handleAddTask);
-            taskInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') handleAddTask();
-            });
-        }
-
-        function renderTasks(container, counterEl, tasks, dateKey) {
-            container.innerHTML = '';
-            if (!tasks || tasks.length === 0) {
-                container.innerHTML = `<p class="text-xs text-sage-400 italic py-1">Nessuna attività inserita.</p>`;
-                counterEl.textContent = '0 completate';
-                return;
-            }
-
-            const completedCount = tasks.filter(t => t.completed).length;
-            counterEl.textContent = `${completedCount}/${tasks.length} completate`;
-
-            tasks.forEach((task, index) => {
-                const taskRow = document.createElement('div');
-                taskRow.className = `flex items-center justify-between bg-sage-50 border border-sage-100 px-3 py-2 rounded-xl transition ${task.completed ? 'opacity-60 bg-sage-100/50' : ''}`;
-                
-                taskRow.innerHTML = `
-                    <label class="flex items-center space-x-3 flex-1 cursor-pointer overflow-hidden">
-                        <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox w-4 h-4 text-forest rounded border-sage-300 focus:ring-forest cursor-pointer">
-                        <span class="text-sm text-sage-800 truncate ${task.completed ? 'line-through text-sage-400' : ''}">${escapeHTML(task.text)}</span>
-                    </label>
-                    <button class="delete-task-btn text-sage-400 hover:text-red-500 p-1.5 transition ml-2">
-                        <i class="fa-solid fa-trash-can text-xs"></i>
-                    </button>
-                `;
-
-                const checkbox = taskRow.querySelector('.task-checkbox');
-                checkbox.addEventListener('change', () => {
-                    const data = loadDayData(dateKey);
-                    data.tasks[index].completed = checkbox.checked;
-                    saveDayData(dateKey, data);
-                    renderTasks(container, counterEl, data.tasks, dateKey);
-                    updateSidebarBadge(dateKey);
-                });
-
-                const deleteBtn = taskRow.querySelector('.delete-task-btn');
-                deleteBtn.addEventListener('click', () => {
-                    const data = loadDayData(dateKey);
-                    data.tasks.splice(index, 1);
-                    saveDayData(dateKey, data);
-                    renderTasks(container, counterEl, data.tasks, dateKey);
-                    updateSidebarBadge(dateKey);
-                });
-
-                container.appendChild(taskRow);
-            });
-        }
-
-        function updateSidebarBadge(dateKey) {
-            const btn = document.querySelector(`.sidebar-item-${dateKey}`);
-            if (!btn) return;
-            const data = loadDayData(dateKey);
-            const hasNotes = data.notes && data.notes.trim().length > 0;
-            const hasTasks = data.tasks && data.tasks.some(t => !t.completed);
-
-            let indicator = btn.querySelector('.w-2.h-2.rounded-full:not(.bg-forest)');
-            if (hasNotes || hasTasks) {
-                if (!indicator) {
-                    const span = document.createElement('span');
-                    span.className = 'w-2 h-2 rounded-full bg-sage-400 group-hover:bg-forest';
-                    btn.appendChild(span);
-                }
-            } else {
-                if (indicator) indicator.remove();
-            }
-        }
-
-        function loadDayData(dateKey) {
-            try {
-                const item = localStorage.getItem(`agenda_${dateKey}`);
-                return item ? JSON.parse(item) : { notes: '', tasks: [] };
-            } catch (e) {
-                return { notes: '', tasks: [] };
-            }
-        }
-
-        function saveDayData(dateKey, data) {
-            try {
-                localStorage.setItem(`agenda_${dateKey}`, JSON.stringify(data));
-            } catch (e) {
-                console.error("Errore salvataggio localStorage", e);
-            }
-        }
-
-        function scrollToDate(dateKey, smooth = true) {
-            const targetPage = pagesViewport.querySelector(`[data-date="${dateKey}"]`);
-            if (targetPage) {
-                pagesViewport.scrollTo({
-                    left: targetPage.offsetLeft,
-                    behavior: smooth ? 'smooth' : 'auto'
-                });
-                activeDateString = dateKey;
-            }
-        }
-
-        function navigatePages(direction) {
-            const [y, m, d] = activeDateString.split('-');
-            const dateObj = new Date(y, m - 1, d);
-            dateObj.setDate(dateObj.getDate() + direction);
-            const newKey = formatDateKey(dateObj);
-            
-            let targetPage = pagesViewport.querySelector(`[data-date="${newKey}"]`);
-            if (!targetPage) {
-                renderPages();
-                targetPage = pagesViewport.querySelector(`[data-date="${newKey}"]`);
-            }
-            if (targetPage) {
-                activeDateString = newKey;
-                scrollToDate(newKey, true);
-                highlightSidebarItem(newKey);
-            }
-        }
-
-        function detectActivePageOnScroll() {
-            const scrollLeft = pagesViewport.scrollLeft;
-            const pages = pagesViewport.querySelectorAll('.day-page');
-            let closestPage = null;
-            let minDistance = Infinity;
-
-            pages.forEach(page => {
-                const distance = Math.abs(page.offsetLeft - scrollLeft);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestPage = page;
-                }
-            });
-
-            if (closestPage) {
-                const dateKey = closestPage.getAttribute('data-date');
-                if (dateKey && dateKey !== activeDateString) {
-                    activeDateString = dateKey;
-                    highlightSidebarItem(dateKey);
-                }
-            }
-        }
-
-        function showSaveStatus(text, colorClass) {
-            saveIndicator.className = `text-xs ${colorClass} hidden sm:flex items-center space-x-1 bg-forest-dark px-2.5 py-1 rounded-full transition`;
-            saveIndicator.innerHTML = `<i class="fa-solid fa-check text-xs"></i><span>${text}</span>`;
-            saveIndicator.classList.remove('hidden');
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-
-        window.onload = initApp;
+        // Avvio iniziale
+        generateDatesRange();
+        loadInitialData();
+        setTimeout(scrollToActiveDate, 100);
     </script>
 </body>
 </html>
