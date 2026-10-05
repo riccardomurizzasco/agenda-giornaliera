@@ -1,890 +1,667 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>INTEGRA PROGETTI - Cloud Calendar</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Agenda Giornaliera Verde</title>
+    <meta name="description" content="Agenda giornaliera semplice ed elegante con note e attività, tema verde naturale.">
     
-    .toast-enter { transform: translateX(100%); opacity: 0; }
-    .toast-enter-active { transform: translateX(0); opacity: 1; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-    .toast-exit { transform: translateX(100%); opacity: 0; transition: all 0.3s ease-in; }
+    <!-- PWA Meta Tags for Android & iOS -->
+    <meta name="theme-color" content="#274e31">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="VerdeAgenda">
     
-    .task-checkbox:checked { background-color: #22c55e !important; border-color: #22c55e !important; }
-    
-    .dragging { opacity: 0.4; transform: scale(0.95); }
-    .drag-over { background-color: rgba(59, 130, 246, 0.1) !important; border: 2px dashed #3b82f6 !important; }
+    <!-- Dynamic Web Manifest link -->
+    <link id="pwa-manifest" rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Agenda%20Giornaliera%20Verde%22%2C%22short_name%22%3A%22VerdeAgenda%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f7f4%22%2C%22theme_color%22%3A%22%23274e31%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F192x192%2F274e31%2Fffffff%3Ftext%3DVA%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F512x512%2F274e31%2Fffffff%3Ftext%3DVA%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
 
-    /* Fix altezza viewport mobile dinamica */
-    body {
-      height: 100dvh;
-      overflow: hidden;
-    }
-  </style>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs per la sincronizzazione cloud -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sage: {
+                            50: '#f4f7f4',
+                            100: '#e5ebe5',
+                            200: '#c8d7c8',
+                            300: '#a3bca3',
+                            400: '#759b75',
+                            500: '#527c52',
+                            600: '#406340',
+                            700: '#345034',
+                            800: '#2c412c',
+                            900: '#253525',
+                            950: '#131d13',
+                        },
+                        forest: {
+                            light: '#3e6b48',
+                            DEFAULT: '#274e31',
+                            dark: '#1b3521'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.03);
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #a3bca3;
+            border-radius: 4px;
+        }
+        .day-page {
+            flex: 0 0 100%;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 antialiased flex flex-col relative select-none">
+<body class="bg-sage-50 text-sage-900 h-screen w-screen overflow-hidden flex flex-col">
 
-  <!-- SCHERMATA DI ACCESSO (LOGIN PROFILI) -->
-  <div id="login-overlay" class="fixed inset-0 bg-slate-900 z-[200] flex flex-col items-center justify-center p-4 transition-opacity duration-300">
-    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md text-center flex flex-col max-h-[90vh]">
-      <div class="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg flex-shrink-0">
-        <i class="fa-solid fa-compass-drafting"></i>
-      </div>
-      <h2 class="text-xl sm:text-2xl font-bold text-slate-800 mb-1">INTEGRA PROGETTI</h2>
-      <p class="text-xs sm:text-sm text-slate-500 mb-6 flex-shrink-0">Seleziona il tuo profilo per accedere al Cloud</p>
-      
-      <div id="login-collaborators-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-3 px-1 pb-2">
-        <div class="text-sm text-slate-400 animate-pulse py-4">Connessione al database in corso...</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Contenitore Notifiche Pop-up -->
-  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-3 w-72 sm:w-80 pointer-events-none"></div>
-
-  <!-- Header App Mobile & Desktop -->
-  <header class="bg-slate-900 text-white px-3 sm:px-6 py-2.5 shadow-md flex justify-between items-center flex-shrink-0 z-10">
-    <div class="flex items-center space-x-2 sm:space-x-3">
-      <div class="bg-blue-600 text-white p-1.5 sm:p-2 rounded-lg font-bold tracking-wider text-xs sm:text-sm flex items-center gap-1.5">
-        <i class="fa-solid fa-compass-drafting text-base sm:text-lg"></i>
-        <span class="hidden xs:inline">INTEGRA</span>
-      </div>
-      <div>
-        <h1 class="font-bold text-sm sm:text-lg leading-tight">INTEGRA PROGETTI</h1>
-        <p class="text-[10px] sm:text-xs text-slate-400 hidden sm:block">Database Cloud Condiviso - <span id="currentUserDisplay">Accesso in corso...</span></p>
-      </div>
-    </div>
-    <div class="flex items-center space-x-1 sm:space-x-2">
-      <button onclick="toggleMobileSidebar()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 sm:hidden rounded-lg text-xs font-semibold flex items-center gap-1" title="Filtri Team"><i class="fa-solid fa-users-gear"></i></button>
-      <button onclick="openCollaboratorsManageModal()" class="hidden md:flex bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition items-center gap-1.5"><i class="fa-solid fa-user-gear"></i> Team</button>
-      <button onclick="openCategoriesManageModal()" class="hidden md:flex bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition items-center gap-1.5"><i class="fa-solid fa-list-check"></i> Tipologie</button>
-      <button onclick="openTaskModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition shadow flex items-center gap-1.5 sm:gap-2 ml-1"><i class="fa-solid fa-plus"></i> <span class="hidden xs:inline">Nuovo</span></button>
-      <button onclick="logoutUser()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs font-semibold transition shadow flex items-center gap-1.5 ml-1" title="Cambia Utente"><i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Esci</span></button>
-    </div>
-  </header>
-
-  <!-- Layout Principale -->
-  <div class="flex flex-1 overflow-hidden relative">
-    
-    <!-- Sidebar Filtri -->
-    <aside id="sidebarFilters" class="absolute sm:relative inset-y-0 left-0 z-30 w-72 sm:w-80 bg-white border-r border-slate-200 p-4 flex flex-col justify-between flex-shrink-0 custom-scrollbar overflow-y-auto transform -translate-x-full sm:translate-x-0 transition-transform duration-300 shadow-xl sm:shadow-none">
-      <div class="space-y-5">
-        <div class="flex justify-between items-center sm:hidden pb-2 border-b border-slate-100">
-          <span class="font-bold text-xs uppercase text-slate-700">Pannello Filtri</span>
-          <button onclick="toggleMobileSidebar()" class="text-slate-400 hover:text-slate-700 text-base"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-2">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Collaboratori</h2>
-            <div class="space-x-2">
-              <button onclick="resetCollaboratorFilter()" class="text-[11px] text-blue-600 hover:underline">Tutti</button>
-              <button onclick="openCollaboratorsManageModal(); toggleMobileSidebar();" class="text-[11px] text-slate-500 hover:text-slate-800 sm:inline"><i class="fa-solid fa-pen"></i></button>
-            </div>
-          </div>
-          <div id="collaboratorsList" class="space-y-2"></div>
-        </div>
-        <hr class="border-slate-200">
-        <div>
-          <div class="flex justify-between items-center mb-2">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Tipologia Pratiche</h2>
-            <button onclick="openCategoriesManageModal(); toggleMobileSidebar();" class="text-[11px] text-slate-500 hover:text-slate-800"><i class="fa-solid fa-pen"></i></button>
-          </div>
-          <div id="categoriesList" class="space-y-1.5 text-xs text-slate-600"></div>
-        </div>
-      </div>
-      <div class="pt-4 text-[11px] text-slate-400 text-center border-t border-slate-200 mt-6">INTEGRA PROGETTI &copy; 2026</div>
-    </aside>
-
-    <!-- Area Calendario -->
-    <main class="flex-1 flex flex-col bg-white overflow-hidden w-full">
-      <div class="p-3 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-slate-50 flex-shrink-0 gap-3 sm:gap-0">
-        
-        <!-- Navigazione Calendario -->
-        <div class="flex items-center justify-between sm:justify-start space-x-2 sm:space-x-3 w-full sm:w-auto">
-          <button onclick="prevPeriod()" class="p-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-slate-600 transition shadow-sm"><i class="fa-solid fa-chevron-left text-xs"></i></button>
-          <h2 id="currentMonthYear" class="text-sm sm:text-base font-bold text-slate-800 min-w-[140px] sm:min-w-[180px] text-center uppercase tracking-tight">Caricamento...</h2>
-          <button onclick="nextPeriod()" class="p-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-slate-600 transition shadow-sm"><i class="fa-solid fa-chevron-right text-xs"></i></button>
-          <button onclick="goToToday()" class="px-2.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-xs font-bold rounded-lg text-slate-700 transition shadow-sm hidden xs:block">Oggi</button>
-        </div>
-        
-        <!-- Controlli Viste & Ricerca -->
-        <div class="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
-          <div class="flex bg-slate-200 p-0.5 rounded-lg border border-slate-300 flex-shrink-0 shadow-inner">
-            <button onclick="setView('month')" id="btn-view-month" class="px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition bg-white shadow-sm text-slate-800">Mese</button>
-            <button onclick="setView('week')" id="btn-view-week" class="px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-800">Sett.</button>
-            <button onclick="setView('day')" id="btn-view-day" class="px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-800">Giorno</button>
-          </div>
-          
-          <div class="relative w-full sm:w-56 ml-2">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-            <input type="text" id="searchInput" oninput="renderCalendar()" placeholder="Cerca lavoro..." class="pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
-          </div>
-        </div>
-      </div>
-
-      <!-- Grid Calendario con Swipe Orizzontale -->
-      <div id="calendarSwipeWrapper" class="flex-1 overflow-y-auto custom-scrollbar p-2 sm:p-4 bg-slate-100">
-        <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden flex flex-col h-full min-h-[500px]">
-          <div id="calendarHeaderGrid" class="border-b border-slate-200 bg-slate-50 text-center font-bold text-[10px] sm:text-xs text-slate-500 py-2 uppercase tracking-wider flex-shrink-0">
-          </div>
-          <div id="calendarDaysGrid" class="flex-1 auto-rows-fr gap-px bg-slate-200"></div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <!-- Modal Inserimento Lavoro -->
-  <div id="taskModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-3 sm:p-4">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
-      <div class="bg-slate-900 text-white px-4 sm:px-6 py-3.5 flex justify-between items-center flex-shrink-0">
-        <h3 id="modalTitle" class="font-bold text-sm sm:text-base flex items-center gap-2"><i class="fa-regular fa-calendar-plus text-blue-400"></i> Programma Nuovo Lavoro</h3>
-        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-white text-base"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="taskForm" onsubmit="saveTask(event)" class="p-4 sm:p-6 space-y-3.5 overflow-y-auto custom-scrollbar flex-1 bg-white">
-        <input type="hidden" id="groupId">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Titolo Attività / Commessa *</label>
-          <input type="text" id="taskTitle" required placeholder="Es. Sopralluogo Cantiere..." class="w-full text-xs sm:text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Assegna a Collaboratori *</label>
-          <div id="assigneesCheckboxGroup" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 border border-slate-300 rounded-lg bg-slate-50 max-h-32 overflow-y-auto custom-scrollbar"></div>
-        </div>
-        
-        <div id="completedContainer" class="hidden bg-green-50 border border-green-200 p-2.5 rounded-lg flex items-center space-x-2">
-          <input type="checkbox" id="taskCompleted" class="rounded text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer">
-          <label for="taskCompleted" class="text-xs font-bold text-green-800 uppercase cursor-pointer">Attività Completata (rimuovi ritardo)</label>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipologia Lavoro</label>
-            <select id="taskCategory" class="w-full text-xs sm:text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"></select>
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1 text-blue-600"><i class="fa-regular fa-bell"></i> Promemoria Pop-up</label>
-            <div class="flex flex-col gap-2">
-              <select id="taskReminder" onchange="toggleCustomReminderDate()" class="w-full text-xs sm:text-sm p-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-blue-50/50">
-                <option value="none">Nessun avviso</option>
-                <option value="same_day">Il giorno stesso (Inizio)</option>
-                <option value="day_before">1 giorno prima</option>
-                <option value="custom">Data personalizzata...</option>
-              </select>
-              <input type="date" id="taskCustomReminderDate" class="hidden w-full text-xs sm:text-sm p-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-blue-50/50">
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Data Inizio *</label><input type="date" id="taskStartDate" required class="w-full text-xs sm:text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></div>
-          <div><label class="block text-xs font-bold text-slate-700 uppercase mb-1">Data Fine *</label><input type="date" id="taskEndDate" required class="w-full text-xs sm:text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"></div>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cliente / Cantiere / Note</label>
-          <textarea id="taskNotes" rows="2" placeholder="Indirizzo cantiere, contatti..." class="w-full text-xs sm:text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
-        </div>
-      </form>
-      <div class="flex justify-between items-center p-3.5 sm:p-4 border-t border-slate-200 flex-shrink-0 bg-slate-50">
-        <button type="button" id="deleteBtn" onclick="deleteTaskGroup()" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-lg text-xs font-semibold transition hidden"><i class="fa-solid fa-trash mr-1"></i> Elimina</button>
-        <div class="flex space-x-2 ml-auto">
-          <button type="button" onclick="closeTaskModal()" class="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold shadow-sm bg-white">Annulla</button>
-          <button type="submit" form="taskForm" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-md">Salva Lavoro</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Gestione Team -->
-  <div id="collaboratorsManageModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-3">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
-      <div class="bg-slate-900 text-white px-5 py-3.5 flex justify-between items-center"><h3 class="font-bold text-sm sm:text-base"><i class="fa-solid fa-user-gear"></i> Gestione Team</h3><button onclick="closeCollaboratorsManageModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button></div>
-      <div class="p-4 sm:p-6 space-y-4">
-        <div class="bg-slate-50 p-3 border border-slate-200 rounded-lg space-y-2">
-          <div class="text-xs font-bold text-slate-700 uppercase">Aggiungi Collaboratore</div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input type="text" id="newCollabName" placeholder="Nome Cognome" class="text-xs p-2 border border-slate-300 rounded focus:outline-none">
-            <input type="text" id="newCollabRole" placeholder="Ruolo / Mansione" class="text-xs p-2 border border-slate-300 rounded focus:outline-none">
-            <div class="flex items-center space-x-2"><input type="color" id="newCollabColor" value="#3b82f6" class="w-8 h-8 rounded border cursor-pointer"><button onclick="addNewCollaborator()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 sm:py-1.5 rounded text-xs font-semibold">Aggiungi</button></div>
-          </div>
-        </div>
-        <div class="text-xs font-bold text-slate-700 uppercase">Collaboratori Attuali</div>
-        <div id="manageCollaboratorsList" class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar"></div>
-        <div class="flex justify-end pt-3 border-t"><button onclick="closeCollaboratorsManageModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold">Chiudi</button></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Gestione Tipologie -->
-  <div id="categoriesManageModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-3">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
-      <div class="bg-slate-900 text-white px-5 py-3.5 flex justify-between items-center"><h3 class="font-bold text-sm sm:text-base"><i class="fa-solid fa-list-check"></i> Gestione Tipologie</h3><button onclick="closeCategoriesManageModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button></div>
-      <div class="p-4 sm:p-6 space-y-4">
-        <div class="flex gap-2">
-          <input type="text" id="newCategoryName" placeholder="Es. Direzione Lavori..." class="flex-1 text-xs p-2.5 border border-slate-300 rounded-lg focus:outline-none">
-          <button onclick="addNewCategory()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-xs font-semibold">Aggiungi</button>
-        </div>
-        <div class="text-xs font-bold text-slate-700 uppercase">Tipologie Attive</div>
-        <div id="manageCategoriesList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar"></div>
-        <div class="flex justify-end pt-3 border-t"><button onclick="closeCategoriesManageModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold">Chiudi</button></div>
-      </div>
-    </div>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCQ8CqiqBOzlwh1sFnAsAfjdeZgrUqUVAE",
-      authDomain: "integra-progetti.firebaseapp.com",
-      projectId: "integra-progetti",
-      storageBucket: "integra-progetti.firebasestorage.app",
-      messagingSenderId: "1083899327593",
-      appId: "1:1083899327593:web:3cf514e4a3ec1d1d4a5ef8",
-      measurementId: "G-EVNRYQR8T8"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    window.collaborators = [];
-    window.categories = [];
-    window.tasks = [];
-    window.activeCollaboratorFilters = [];
-    window.currentDate = new Date();
-    window.currentView = 'month'; 
-    window.shownReminders = new Set();
-    
-    window.currentUserId = localStorage.getItem('integra_current_user') || null;
-
-    signInAnonymously(auth).then(() => {
-      initAppListeners();
-      initSwipeGesture();
-    }).catch((error) => {
-      console.error("Errore autenticazione cloud:", error);
-    });
-
-    function initSwipeGesture() {
-      const wrapper = document.getElementById('calendarSwipeWrapper');
-      let touchStartX = 0; let touchStartY = 0; let touchEndX = 0; let touchEndY = 0;
-
-      wrapper.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
-        touchStartY = e.changedTouches[0].screenY;
-      }, {passive: true});
-
-      wrapper.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        touchEndY = e.changedTouches[0].screenY;
-        handleSwipe();
-      }, {passive: true});
-
-      function handleSwipe() {
-        const diffX = touchEndX - touchStartX;
-        const diffY = touchEndY - touchStartY;
-        // Solo se lo swipe è orizzontale
-        if (Math.abs(diffX) > Math.abs(diffY)) {
-          if (diffX > 60) {
-            window.prevPeriod();
-          } else if (diffX < -60) {
-            window.nextPeriod();
-          }
-        }
-      }
-    }
-
-    function initAppListeners() {
-      let isFirstLoadCollabs = true;
-      onSnapshot(collection(db, "collaborators"), (snapshot) => {
-        if (snapshot.empty && isFirstLoadCollabs) {
-          const defaultCollabs = [
-            { id: 'c1', name: 'Marco Rossi', role: 'Geometra Senior', bg: '#2563eb', text: '#ffffff' },
-            { id: 'c2', name: 'Laura Bianchi', role: 'Progettista / CAD', bg: '#059669', text: '#ffffff' },
-            { id: 'c3', name: 'Andrea Verdi', role: 'Sicurezza & Cantieri', bg: '#d97706', text: '#ffffff' },
-            { id: 'c4', name: 'Elena Neri', role: 'Catasto & Topografia', bg: '#7c3aed', text: '#ffffff' }
-          ];
-          defaultCollabs.forEach(async c => { await setDoc(doc(db, "collaborators", c.id), c); });
-        } else {
-          window.collaborators = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-          window.renderLoginScreen(); 
-          window.renderCollaboratorsList();
-          window.renderManageCollaboratorsList();
-          if (window.currentUserId) applyUserFilters(window.currentUserId, false);
-          window.renderCalendar();
-        }
-        isFirstLoadCollabs = false;
-      });
-
-      let isFirstLoadCats = true;
-      onSnapshot(collection(db, "categories"), (snapshot) => {
-        if (snapshot.empty && isFirstLoadCats) {
-          const defaultCats = [ { id: 'cat1', name: 'Sicurezza / PSC' }, { id: 'cat2', name: 'Pratiche Edilizie' }, { id: 'cat3', name: 'Catasto & Rilievi' }, { id: 'cat4', name: 'Sopralluogo / Verifiche' } ];
-          defaultCats.forEach(async cat => { await setDoc(doc(db, "categories", cat.id), cat); });
-        } else {
-          window.categories = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-          window.renderCategoriesList();
-          window.renderManageCategoriesList();
-        }
-        isFirstLoadCats = false;
-      });
-
-      onSnapshot(collection(db, "tasks"), (snapshot) => {
-        window.tasks = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-        window.renderCollaboratorsList();
-        window.renderCategoriesList();
-        window.renderCalendar();
-        window.checkReminders();
-      });
-    }
-
-    window.renderLoginScreen = function() {
-      const loginOverlay = document.getElementById('login-overlay');
-      const container = document.getElementById('login-collaborators-list');
-      
-      let htmlContent = `
-        <button onclick="selectUser('admin')" class="flex items-center justify-between p-3 rounded-xl border-2 border-slate-900 bg-slate-900 text-white hover:bg-slate-800 transition shadow-md w-full text-left">
-          <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm"><i class="fa-solid fa-user-shield"></i></div>
-            <div>
-              <div class="font-bold text-sm sm:text-base">Amministratore (Admin)</div>
-              <div class="text-xs text-slate-300">Visualizza tutte le attività del team</div>
-            </div>
-          </div>
-          <i class="fa-solid fa-chevron-right text-slate-400 mr-2"></i>
-        </button>
-        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left pt-2 pb-1">Oppure seleziona il tuo profilo:</div>
-      `;
-
-      htmlContent += window.collaborators.map(c => `
-        <button onclick="selectUser('${c.id}')" class="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm w-full text-left bg-white" style="border-left: 5px solid ${c.bg}">
-          <div>
-            <div class="font-bold text-slate-800 text-sm sm:text-base">${c.name}</div>
-            <div class="text-xs text-slate-500">${c.role}</div>
-          </div>
-          <i class="fa-solid fa-chevron-right text-slate-300 mr-2"></i>
-        </button>
-      `).join('');
-
-      container.innerHTML = htmlContent;
-
-      if (window.currentUserId) {
-        if (window.currentUserId === 'admin') {
-          loginOverlay.classList.add('opacity-0', 'pointer-events-none');
-          setTimeout(() => loginOverlay.classList.add('hidden'), 300);
-          document.getElementById('currentUserDisplay').textContent = "Accesso come: Amministratore";
-        } else {
-          const userExists = window.collaborators.find(c => c.id === window.currentUserId);
-          if (userExists) {
-            loginOverlay.classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => loginOverlay.classList.add('hidden'), 300);
-            document.getElementById('currentUserDisplay').textContent = "Accesso come: " + userExists.name;
-          } else {
-            window.logoutUser();
-          }
-        }
-      }
-    }
-
-    window.selectUser = function(id) {
-      window.currentUserId = id;
-      localStorage.setItem('integra_current_user', id);
-      applyUserFilters(id, true);
-      const loginOverlay = document.getElementById('login-overlay');
-      loginOverlay.classList.add('opacity-0', 'pointer-events-none');
-      setTimeout(() => loginOverlay.classList.add('hidden'), 300);
-    }
-
-    function applyUserFilters(userId, forceApply) {
-      if (userId === 'admin') {
-        document.getElementById('currentUserDisplay').textContent = "Accesso come: Amministratore";
-        window.activeCollaboratorFilters = window.collaborators.map(c => c.id);
-      } else {
-        const user = window.collaborators.find(c => c.id === userId);
-        if (user) {
-          document.getElementById('currentUserDisplay').textContent = "Accesso come: " + user.name;
-          window.activeCollaboratorFilters = [user.id];
-        } else {
-          window.activeCollaboratorFilters = window.collaborators.map(c => c.id);
-        }
-      }
-      window.renderCollaboratorsList();
-      window.renderCalendar();
-    }
-
-    window.logoutUser = function() {
-      window.currentUserId = null;
-      localStorage.removeItem('integra_current_user');
-      document.getElementById('currentUserDisplay').textContent = "Accesso in corso...";
-      const loginOverlay = document.getElementById('login-overlay');
-      loginOverlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
-    }
-
-    window.toggleMobileSidebar = function() {
-      document.getElementById('sidebarFilters').classList.toggle('-translate-x-full');
-    }
-
-    window.showToast = function(title, message, colorHex) {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      toast.className = 'toast-enter bg-white border-l-4 rounded shadow-lg p-3 sm:p-4 flex items-start space-x-3 text-xs sm:text-sm pointer-events-auto';
-      toast.style.borderColor = colorHex || '#2563eb';
-      toast.innerHTML = `
-        <div class="bg-blue-50 rounded-full p-2 flex-shrink-0" style="color: ${colorHex || '#2563eb'}"><i class="fa-solid fa-bell text-sm"></i></div>
-        <div class="flex-1 pt-0.5"><h4 class="font-bold text-slate-800 leading-tight">${title}</h4><p class="text-[11px] sm:text-xs text-slate-600 mt-0.5">${message}</p></div>
-        <button class="text-slate-400 hover:text-slate-600 cursor-pointer" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
-      `;
-      container.appendChild(toast);
-      requestAnimationFrame(() => { toast.classList.remove('toast-enter'); toast.classList.add('toast-enter-active'); });
-      setTimeout(() => { toast.classList.add('toast-exit'); setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300); }, 7000);
-    }
-
-    window.checkReminders = function() {
-      if(!window.currentUserId) return;
-      const today = new Date().toISOString().split('T')[0];
-      const tmrw = new Date(); tmrw.setDate(tmrw.getDate() + 1);
-      const tmrwStr = tmrw.toISOString().split('T')[0];
-      
-      window.tasks.forEach(t => {
-        if (!t.reminder || t.reminder === 'none' || t.completed) return;
-        if (window.currentUserId !== 'admin' && t.assigneeId !== window.currentUserId) return;
-
-        const collab = window.collaborators.find(c => c.id === t.assigneeId) || {name: 'Team', bg: '#2563eb'};
-        let shouldRemind = false, msg = '';
-        if (t.reminder === 'same_day' && t.startDate === today) { shouldRemind = true; msg = `<strong>Inizia oggi:</strong> ${t.title}<br/><span class="opacity-80">Assegnato a: ${collab.name}</span>`; } 
-        else if (t.reminder === 'day_before' && t.startDate === tmrwStr) { shouldRemind = true; msg = `<strong>In programma domani:</strong> ${t.title}<br/><span class="opacity-80">Assegnato a: ${collab.name}</span>`; }
-        else if (t.reminder === 'custom' && t.reminderDate === today) { shouldRemind = true; msg = `<strong>Promemoria fissato:</strong> ${t.title}<br/><span class="opacity-80">Assegnato a: ${collab.name}</span>`; }
-        
-        const reminderKey = `${t.id}_${today}_${t.reminder}`; 
-        if (shouldRemind && !window.shownReminders.has(reminderKey)) {
-          window.shownReminders.add(reminderKey);
-          window.showToast('Promemoria', msg, collab.bg);
-        }
-      });
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(window.checkReminders, 2000); 
-      setInterval(window.checkReminders, 60000);
-    });
-
-    window.toggleCustomReminderDate = function() {
-      const reminderSelect = document.getElementById('taskReminder').value;
-      const customDateInput = document.getElementById('taskCustomReminderDate');
-      if (reminderSelect === 'custom') {
-        customDateInput.classList.remove('hidden');
-        if (!customDateInput.value) customDateInput.value = new Date().toISOString().split('T')[0];
-      } else { customDateInput.classList.add('hidden'); }
-    }
-
-    window.renderCollaboratorsList = function() {
-      const container = document.getElementById('collaboratorsList');
-      container.innerHTML = window.collaborators.map(c => {
-        const isChecked = window.activeCollaboratorFilters.includes(c.id);
-        const taskCount = window.tasks.filter(t => t.assigneeId === c.id && !t.completed).length;
-        return `
-          <div onclick="toggleCollaboratorFilter('${c.id}')" class="p-2.5 rounded-lg border transition cursor-pointer flex items-center justify-between shadow-sm hover:shadow ${isChecked ? 'opacity-100 ring-2 ring-slate-700' : 'opacity-40 bg-slate-100 border-slate-300'}" style="background-color: ${c.bg}; color: ${c.text}">
-            <div class="flex items-center space-x-2"><input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleCollaboratorFilter('${c.id}')" class="rounded text-slate-900 focus:ring-0 cursor-pointer">
-              <div><div class="text-xs font-bold">${c.name}</div><div class="text-[10px] opacity-90">${c.role}</div></div>
-            </div><span class="text-[11px] px-2 py-0.5 rounded-full font-bold bg-black/20">${taskCount}</span>
-          </div>`;
-      }).join('');
-    }
-
-    window.renderCategoriesList = function() {
-      document.getElementById('categoriesList').innerHTML = window.categories.map(cat => `
-        <div class="flex items-center justify-between p-1.5 rounded hover:bg-slate-50 border border-transparent">
-          <span class="truncate"><i class="fa-solid fa-tag text-slate-400 mr-2"></i>${cat.name}</span>
-          <span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono text-[10px]">${window.tasks.filter(t => t.category === cat.name && !t.completed).length}</span>
-        </div>`).join('');
-    }
-
-    window.toggleCollaboratorFilter = function(id) {
-      if (window.activeCollaboratorFilters.includes(id)) window.activeCollaboratorFilters = window.activeCollaboratorFilters.filter(item => item !== id);
-      else window.activeCollaboratorFilters.push(id);
-      window.renderCollaboratorsList(); window.renderCalendar();
-    }
-    window.resetCollaboratorFilter = function() { window.activeCollaboratorFilters = window.collaborators.map(c => c.id); window.renderCollaboratorsList(); window.renderCalendar(); }
-    
-    window.setView = function(v) {
-      window.currentView = v;
-      ['month', 'week', 'day'].forEach(view => {
-        const btn = document.getElementById('btn-view-' + view);
-        if(view === v) {
-          btn.classList.add('bg-white', 'shadow-sm', 'text-slate-800');
-          btn.classList.remove('text-slate-500', 'hover:text-slate-800');
-        } else {
-          btn.classList.remove('bg-white', 'shadow-sm', 'text-slate-800');
-          btn.classList.add('text-slate-500', 'hover:text-slate-800');
-        }
-      });
-      window.renderCalendar();
-    }
-
-    window.prevPeriod = function() { 
-      if(window.currentView === 'month') window.currentDate.setMonth(window.currentDate.getMonth() - 1); 
-      else if(window.currentView === 'week') window.currentDate.setDate(window.currentDate.getDate() - 7);
-      else if(window.currentView === 'day') window.currentDate.setDate(window.currentDate.getDate() - 1);
-      window.renderCalendar(); 
-    }
-    
-    window.nextPeriod = function() { 
-      if(window.currentView === 'month') window.currentDate.setMonth(window.currentDate.getMonth() + 1); 
-      else if(window.currentView === 'week') window.currentDate.setDate(window.currentDate.getDate() + 7);
-      else if(window.currentView === 'day') window.currentDate.setDate(window.currentDate.getDate() + 1);
-      window.renderCalendar(); 
-    }
-    
-    window.goToToday = function() { window.currentDate = new Date(); window.renderCalendar(); }
-
-    window.renderCalendar = function() {
-      const year = window.currentDate.getFullYear(); const month = window.currentDate.getMonth();
-      const todayDate = new Date();
-      const todayStr = todayDate.toISOString().split('T')[0];
-      
-      const gridContainer = document.getElementById('calendarDaysGrid');
-      const headerGrid = document.getElementById('calendarHeaderGrid');
-      gridContainer.innerHTML = '';
-      
-      let daysToRender = [];
-      const monthNames = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
-
-      if (window.currentView === 'month') {
-        document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
-        headerGrid.className = "grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center font-bold text-[10px] sm:text-xs text-slate-500 py-2 uppercase tracking-wider flex-shrink-0";
-        headerGrid.innerHTML = `<div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div class="text-slate-400">Sab</div><div class="text-slate-400">Dom</div>`;
-        gridContainer.className = "grid grid-cols-7 flex-1 auto-rows-fr gap-px bg-slate-200";
-
-        const firstDay = new Date(year, month, 1).getDay();
-        const startingDay = firstDay === 0 ? 6 : firstDay - 1;
-        const totalDays = new Date(year, month + 1, 0).getDate();
-        const prevMonthLastDay = new Date(year, month, 0).getDate();
-        
-        for (let i = startingDay - 1; i >= 0; i--) {
-          gridContainer.innerHTML += `<div class="bg-slate-50 text-slate-300 p-1 min-h-[85px] sm:min-h-[120px] text-xs font-medium select-none border-b border-slate-100">${prevMonthLastDay - i}</div>`;
-        }
-        for (let day = 1; day <= totalDays; day++) daysToRender.push(new Date(year, month, day));
-
-      } else if (window.currentView === 'week') {
-        const dayOfWeek = window.currentDate.getDay();
-        const distanceToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
-        const startOfWeek = new Date(window.currentDate);
-        startOfWeek.setDate(window.currentDate.getDate() + distanceToMonday);
-        
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        
-        document.getElementById('currentMonthYear').textContent = `${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()].substring(0,3)} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()].substring(0,3)} ${endOfWeek.getFullYear()}`;
-        
-        headerGrid.className = "grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center font-bold text-[10px] sm:text-xs text-slate-500 py-2 uppercase tracking-wider flex-shrink-0";
-        headerGrid.innerHTML = `<div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div class="text-slate-400">Sab</div><div class="text-slate-400">Dom</div>`;
-        gridContainer.className = "grid grid-cols-7 flex-1 auto-rows-fr gap-px bg-slate-200";
-
-        for (let i = 0; i < 7; i++) {
-          const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i);
-          daysToRender.push(d);
-        }
-
-      } else if (window.currentView === 'day') {
-        document.getElementById('currentMonthYear').textContent = `${window.currentDate.getDate()} ${monthNames[window.currentDate.getMonth()]} ${year}`;
-        const dayName = window.currentDate.toLocaleString('it-IT', {weekday:'long'});
-        
-        headerGrid.className = "grid grid-cols-1 border-b border-slate-200 bg-slate-50 text-center font-bold text-[10px] sm:text-xs text-slate-500 py-2 uppercase tracking-wider flex-shrink-0";
-        headerGrid.innerHTML = `<div>${dayName}</div>`;
-        gridContainer.className = "grid grid-cols-1 flex-1 auto-rows-fr gap-px bg-slate-200";
-        daysToRender.push(new Date(window.currentDate));
-      }
-
-      const searchQuery = document.getElementById('searchInput').value.toLowerCase();
-
-      daysToRender.forEach(d => {
-        const iterYear = d.getFullYear(); const iterMonth = d.getMonth(); const iterDay = d.getDate();
-        const dateStr = `${iterYear}-${String(iterMonth + 1).padStart(2, '0')}-${String(iterDay).padStart(2, '0')}`;
-        const isToday = todayDate.getFullYear() === iterYear && todayDate.getMonth() === iterMonth && todayDate.getDate() === iterDay;
-        
-        let minHeightClass = 'min-h-[85px] sm:min-h-[120px]';
-        if (window.currentView === 'week') minHeightClass = 'min-h-[250px] sm:min-h-[350px]';
-        if (window.currentView === 'day') minHeightClass = 'min-h-[400px] sm:min-h-[500px]';
-
-        const dayCell = document.createElement('div');
-        dayCell.className = `bg-white p-1.5 sm:p-2 ${minHeightClass} flex flex-col justify-start transition hover:bg-slate-50/80 group ${isToday ? 'bg-blue-50/20 ring-1 ring-blue-400' : ''}`;
-        
-        // DRAG & DROP
-        dayCell.addEventListener('dragover', (e) => { e.preventDefault(); dayCell.classList.add('drag-over'); });
-        dayCell.addEventListener('dragleave', () => { dayCell.classList.remove('drag-over'); });
-        dayCell.addEventListener('drop', (e) => {
-          e.preventDefault();
-          dayCell.classList.remove('drag-over');
-          const groupId = e.dataTransfer.getData('text/plain');
-          if (groupId) window.moveTaskGroupToDate(groupId, dateStr);
-        });
-
-        let dayHeaderStr = iterDay;
-        if (window.currentView === 'day') dayHeaderStr = `${d.toLocaleString('it-IT', {weekday:'long'})} ${iterDay}`;
-
-        dayCell.innerHTML = `
-          <div class="flex justify-between items-center mb-1.5 px-0.5 border-b border-slate-100 pb-1">
-            <span class="text-[11px] sm:text-xs font-bold ${isToday ? 'bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center justify-center' : 'text-slate-700 capitalize'}">${dayHeaderStr}</span>
-            <button onclick="openTaskModal('${dateStr}')" class="opacity-100 sm:opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 text-sm transition px-2"><i class="fa-solid fa-plus-circle"></i></button>
-          </div>
-        `;
-        const tasksContainer = document.createElement('div');
-        tasksContainer.className = 'space-y-1.5 overflow-y-auto flex-1 custom-scrollbar pr-1 pointer-events-auto';
-
-        const dayTasks = window.tasks.filter(t => {
-          let effectiveEndDate = t.endDate;
-          if (t.completed && t.completionDate && t.completionDate > t.endDate) effectiveEndDate = t.completionDate;
-          else if (!t.completed && todayStr > t.endDate) effectiveEndDate = todayStr;
-          
-          return dateStr >= t.startDate && dateStr <= effectiveEndDate && window.activeCollaboratorFilters.includes(t.assigneeId) &&
-                 (t.title.toLowerCase().includes(searchQuery) || (t.notes && t.notes.toLowerCase().includes(searchQuery)));
-        });
-
-        dayTasks.sort((a, b) => (a.completed === b.completed) ? 0 : a.completed ? 1 : -1);
-
-        dayTasks.forEach(t => {
-          const collab = window.collaborators.find(c => c.id === t.assigneeId) || { name: 'N/A', bg: '#64748b', text: '#fff' };
-          const hasReminderIcon = t.reminder && t.reminder !== 'none' ? '<i class="fa-solid fa-bell text-[8px] opacity-70"></i> ' : '';
-          
-          const isOverdue = !t.completed && todayStr > t.endDate;
-          const borderStyle = isOverdue ? 'border-[2px] border-red-500 shadow-sm' : 'border border-black/10';
-          const opacityStyle = t.completed ? 'opacity-50 saturate-50' : 'opacity-100';
-
-          const taskCard = document.createElement('div');
-          taskCard.className = `text-[10px] sm:text-[11px] p-1.5 rounded shadow-sm hover:shadow-md transition flex flex-col justify-between leading-tight font-medium relative cursor-grab active:cursor-grabbing ${borderStyle} ${opacityStyle}`;
-          taskCard.style.backgroundColor = collab.bg; 
-          taskCard.style.color = collab.text;
-          
-          taskCard.setAttribute('draggable', 'true');
-          taskCard.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', t.groupId);
-            taskCard.classList.add('dragging');
-          });
-          taskCard.addEventListener('dragend', () => taskCard.classList.remove('dragging'));
-
-          const overdueBadge = isOverdue ? '<span class="bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] ml-1 shadow-sm animate-pulse flex-shrink-0" title="Attività in ritardo"><i class="fa-solid fa-bell"></i></span>' : '';
-
-          taskCard.innerHTML = `
-            <div class="flex items-start justify-between gap-1">
-              <div class="flex items-start gap-1.5 flex-1 min-w-0">
-                <input type="checkbox" ${t.completed ? 'checked' : ''} 
-                  onclick="event.stopPropagation(); toggleTaskCompletion('${t.id}', ${!!t.completed})" 
-                  class="task-checkbox mt-[1px] w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-white/50 bg-white/20 text-green-500 focus:ring-0 cursor-pointer flex-shrink-0"
-                  title="Segna come completata">
-                <div class="font-bold flex flex-wrap items-center gap-1 leading-snug cursor-pointer ${t.completed ? 'line-through' : ''}" onclick="openTaskModal(null, '${t.groupId}')">
-                  ${hasReminderIcon}<span class="break-words">${t.title}</span>${overdueBadge}
+    <!-- Top Navigation Header -->
+    <header class="bg-forest text-white shadow-md z-20 flex items-center justify-between px-4 py-3 shrink-0">
+        <div class="flex items-center space-x-3">
+            <button id="sidebar-toggle" class="md:hidden text-white p-2 rounded-lg hover:bg-forest-light transition">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="bg-sage-400 text-forest-dark p-2 rounded-xl flex items-center justify-center font-bold shadow-inner">
+                    <i class="fa-solid fa-leaf"></i>
                 </div>
-              </div>
+                <h1 class="font-bold text-lg tracking-tight">VerdeAgenda</h1>
             </div>
-            <div class="text-[8px] sm:text-[9px] opacity-90 truncate mt-1 flex justify-between items-center cursor-pointer" onclick="openTaskModal(null, '${t.groupId}')">
-              <span><i class="fa-regular fa-user mr-0.5"></i> ${collab.name.split(' ')[0]}</span>
-            </div>`;
-          tasksContainer.appendChild(taskCard);
-        });
-        dayCell.appendChild(tasksContainer);
-        gridContainer.appendChild(dayCell);
-      });
-    }
+        </div>
 
-    window.moveTaskGroupToDate = async function(groupId, newTargetDateStr) {
-      const groupTasks = window.tasks.filter(t => t.groupId === groupId);
-      if (!groupTasks.length) return;
+        <div class="flex items-center space-x-2">
+            <button id="btn-install" class="hidden bg-sage-400 hover:bg-sage-300 text-forest-dark text-xs sm:text-sm px-3 py-1.5 rounded-lg font-bold transition shadow-sm items-center space-x-1.5">
+                <i class="fa-solid fa-download"></i>
+                <span>Installa App</span>
+            </button>
+            <button id="btn-today" class="bg-forest-light hover:bg-sage-600 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg font-medium transition shadow-sm flex items-center space-x-1.5">
+                <i class="fa-solid fa-calendar-day"></i>
+                <span>Oggi</span>
+            </button>
+            <div id="save-indicator" class="text-xs text-sage-200 hidden sm:flex items-center space-x-1 bg-forest-dark px-2.5 py-1 rounded-full">
+                <i class="fa-solid fa-check text-sage-300"></i>
+                <span>Salvato</span>
+            </div>
+        </div>
+    </header>
 
-      const ft = groupTasks[0];
-      const oldStart = new Date(ft.startDate);
-      const oldEnd = new Date(ft.endDate);
-      const durationDays = Math.round((oldEnd - oldStart) / (1000 * 60 * 60 * 24));
+    <!-- Main App Container -->
+    <div class="flex flex-1 overflow-hidden relative">
+        <div id="sidebar-backdrop" class="fixed inset-0 bg-black/40 z-30 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden"></div>
 
-      const newStart = new Date(newTargetDateStr);
-      const newEnd = new Date(newStart);
-      newEnd.setDate(newStart.getDate() + durationDays);
+        <!-- Sidebar with vertical date list -->
+        <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-72 bg-white border-r border-sage-200 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 shadow-xl md:shadow-none">
+            <div class="p-4 border-b border-sage-100 flex items-center justify-between bg-sage-50/50">
+                <h2 class="font-semibold text-sage-800 flex items-center space-x-2">
+                    <i class="fa-regular fa-calendar text-forest"></i>
+                    <span>Seleziona Data</span>
+                </h2>
+                <button id="sidebar-close" class="md:hidden text-sage-500 hover:text-sage-800 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
 
-      const newStartStr = newStart.toISOString().split('T')[0];
-      const newEndStr = newEnd.toISOString().split('T')[0];
+            <div class="p-3 border-b border-sage-100 bg-white">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-sage-600 uppercase tracking-wider">Vai a Mese</span>
+                    <input type="month" id="month-picker" class="text-xs bg-sage-50 border border-sage-200 rounded px-2 py-1 text-sage-800 focus:outline-none focus:ring-1 focus:ring-forest">
+                </div>
+            </div>
 
-      const batch = writeBatch(db);
-      groupTasks.forEach(t => {
-        batch.set(doc(db, "tasks", t.id), { startDate: newStartStr, endDate: newEndStr }, { merge: true });
-      });
-      await batch.commit();
-    }
+            <div id="date-list-container" class="sidebar-scroll flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Dynamically populated via JavaScript -->
+            </div>
 
-    window.toggleTaskCompletion = async function(taskId, isCurrentlyCompleted) {
-      const todayStr = new Date().toISOString().split('T')[0];
-      let updates = { completed: !isCurrentlyCompleted, completionDate: !isCurrentlyCompleted ? todayStr : null };
+            <div class="p-3 border-t border-sage-100 bg-sage-50/50 text-xs text-sage-600 text-center flex flex-col space-y-1">
+                <span>Scorri per navigare tra i giorni</span>
+                <span class="text-[10px] text-sage-400">Cloud Sync & PWA Attive</span>
+            </div>
+        </aside>
 
-      const t = window.tasks.find(x => x.id === taskId);
-      if (t && t.groupId) {
-        const batch = writeBatch(db);
-        window.tasks.filter(x => x.groupId === t.groupId).forEach(groupTask => {
-           batch.set(doc(db, "tasks", groupTask.id), updates, { merge: true });
-        });
-        await batch.commit();
-      }
-    }
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-sage-50 relative">
+            <div id="pages-viewport" class="flex-1 flex overflow-x-auto hide-scrollbar snap-x snap-mandatory h-full w-full"></div>
 
-    window.openTaskModal = function(defaultDate = null, groupId = null) {
-      document.getElementById('taskForm').reset();
-      document.getElementById('taskCategory').innerHTML = window.categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
-      const cbGroup = document.getElementById('assigneesCheckboxGroup');
-      const titleEl = document.getElementById('modalTitle');
-      const delBtn = document.getElementById('deleteBtn');
-      const reminderInput = document.getElementById('taskCustomReminderDate');
-      const completedContainer = document.getElementById('completedContainer');
-      const completedCheckbox = document.getElementById('taskCompleted');
+            <div class="absolute bottom-6 right-6 hidden sm:flex items-center space-x-2 bg-white/90 backdrop-blur-md shadow-lg border border-sage-200 rounded-full px-4 py-2 z-10">
+                <button id="btn-prev" class="w-9 h-9 rounded-full bg-sage-100 hover:bg-forest hover:text-white text-sage-700 flex items-center justify-center transition shadow-sm" title="Giorno precedente">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+                <span id="current-page-label" class="text-xs font-semibold text-sage-800 px-2 min-w-[110px] text-center">Data Odierna</span>
+                <button id="btn-next" class="w-9 h-9 rounded-full bg-sage-100 hover:bg-forest hover:text-white text-sage-700 flex items-center justify-center transition shadow-sm" title="Giorno successivo">
+                    <i class="fa-solid fa-chevron-right text-sm"></i>
+                </button>
+            </div>
+        </main>
+    </div>
 
-      if (groupId) {
-        const groupTasks = window.tasks.filter(t => t.groupId === groupId);
-        if(!groupTasks.length) return;
-        const ft = groupTasks[0];
-        const assignedIds = groupTasks.map(t => t.assigneeId);
+    <script>
+        // ==========================================
+        // CONFIGURAZIONE FIREBASE (Sostituisci l'API Key)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDXVvsjzqSyx4QSqZHgVj8Lx8p94XtXWDc", // <--- PRENDI QUESTA DALLE IMPOSTAZIONI DEL TUO PROGETTO FIREBASE
+            authDomain: "agenda-riccardo-589af.firebaseapp.com",
+            databaseURL: "https://agenda-riccardo-589af-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "agenda-riccardo-589af",
+            storageBucket: "agenda-riccardo-589af.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
 
-        document.getElementById('groupId').value = groupId;
-        document.getElementById('taskTitle').value = ft.title;
-        document.getElementById('taskCategory').value = ft.category;
-        
-        completedContainer.classList.remove('hidden');
-        completedCheckbox.checked = !!ft.completed;
+        let db = null;
+        let useCloud = false;
+        let globalAgendaData = {}; // Struttura dati remoti/locali
 
-        document.getElementById('taskReminder').value = ft.reminder || 'none';
-        if (ft.reminder === 'custom') { reminderInput.value = ft.reminderDate || ''; reminderInput.classList.remove('hidden'); } 
-        else { reminderInput.classList.add('hidden'); reminderInput.value = ''; }
-        
-        document.getElementById('taskStartDate').value = ft.startDate;
-        document.getElementById('taskEndDate').value = ft.endDate;
-        document.getElementById('taskNotes').value = ft.notes || '';
-        cbGroup.innerHTML = window.collaborators.map(c => `
-          <label class="flex items-center space-x-2 text-xs p-1.5 rounded cursor-pointer font-semibold shadow-sm" style="background-color: ${c.bg}; color: ${c.text}">
-            <input type="checkbox" value="${c.id}" ${assignedIds.includes(c.id) ? 'checked' : ''} class="rounded border-slate-300"> <span class="truncate">${c.name}</span></label>`).join('');
-        titleEl.innerHTML = '<i class="fa-regular fa-pen-to-square text-blue-400"></i> Modifica Lavoro Cloud';
-        delBtn.classList.remove('hidden');
-      } else {
-        document.getElementById('groupId').value = '';
-        completedContainer.classList.add('hidden');
-        completedCheckbox.checked = false;
-
-        const dateVal = defaultDate || new Date().toISOString().split('T')[0];
-        document.getElementById('taskStartDate').value = dateVal; document.getElementById('taskEndDate').value = dateVal;
-        document.getElementById('taskReminder').value = 'none'; reminderInput.classList.add('hidden'); reminderInput.value = '';
-        cbGroup.innerHTML = window.collaborators.map((c, i) => {
-          let isSelected = window.currentUserId === 'admin' ? i === 0 : window.currentUserId === c.id;
-          return `<label class="flex items-center space-x-2 text-xs p-1.5 rounded cursor-pointer font-semibold shadow-sm" style="background-color: ${c.bg}; color: ${c.text}">
-            <input type="checkbox" value="${c.id}" ${isSelected ? 'checked' : ''} class="rounded border-slate-300"> <span class="truncate">${c.name}</span></label>`;
-        }).join('');
-        titleEl.innerHTML = '<i class="fa-regular fa-calendar-plus text-blue-400"></i> Programma Nuovo Lavoro Cloud';
-        delBtn.classList.add('hidden');
-      }
-      document.getElementById('taskModal').classList.remove('hidden');
-    }
-    
-    window.closeTaskModal = function() { document.getElementById('taskModal').classList.add('hidden'); }
-
-    window.saveTask = async function(e) {
-      e.preventDefault();
-      const exGroupId = document.getElementById('groupId').value;
-      const title = document.getElementById('taskTitle').value;
-      const category = document.getElementById('taskCategory').value;
-      const reminder = document.getElementById('taskReminder').value;
-      const start = document.getElementById('taskStartDate').value;
-      let end = document.getElementById('taskEndDate').value;
-      const notes = document.getElementById('taskNotes').value;
-      const completed = document.getElementById('taskCompleted').checked;
-      const reminderDate = reminder === 'custom' ? document.getElementById('taskCustomReminderDate').value : null;
-
-      const selectedIds = Array.from(document.querySelectorAll('#assigneesCheckboxGroup input:checked')).map(cb => cb.value);
-      if (!selectedIds.length) return alert('Seleziona almeno un collaboratore.');
-      if (reminder === 'custom' && !reminderDate) return alert('Seleziona la data per il promemoria.');
-
-      const todayStr = new Date().toISOString().split('T')[0];
-      
-      let completionDate = null;
-      if (exGroupId) {
-        const existingTasks = window.tasks.filter(t => t.groupId === exGroupId);
-        if (existingTasks.length > 0) {
-           if (completed && !existingTasks[0].completed) completionDate = todayStr; 
-           else if (completed && existingTasks[0].completed) completionDate = existingTasks[0].completionDate || todayStr; 
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "INSERISCI_QUI_LA_TUA_API_KEY") {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                useCloud = true;
+                console.log("Firebase connesso con successo.");
+            }
+        } catch (e) {
+            console.warn("Errore connessione Firebase, fallback su localStorage.", e);
         }
-      } else {
-        if (completed) completionDate = todayStr;
-      }
 
-      const groupId = exGroupId || 'g_' + Date.now();
-      const batch = writeBatch(db);
+        // Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+                    self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+                `;
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log('SW error', err));
+            });
+        }
 
-      if (exGroupId) { window.tasks.filter(t => t.groupId === exGroupId).forEach(t => { batch.delete(doc(db, "tasks", t.id)); }); }
-      selectedIds.forEach((assigneeId, idx) => {
-        const tId = `t_${groupId}_${idx}`;
-        batch.set(doc(db, "tasks", tId), { groupId, title, assigneeId, category, reminder, reminderDate, startDate: start, endDate: end, notes, completed, completionDate });
-      });
-      await batch.commit();
-      window.closeTaskModal();
-    }
+        let deferredPrompt;
+        const btnInstall = document.getElementById('btn-install');
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstall.classList.remove('hidden');
+            btnInstall.classList.add('flex');
+        });
 
-    window.deleteTaskGroup = async function() {
-      const gId = document.getElementById('groupId').value;
-      if (gId && confirm('Eliminare questo lavoro dal cloud per tutti i collaboratori assegnati?')) {
-        const batch = writeBatch(db);
-        window.tasks.filter(t => t.groupId === gId).forEach(t => { batch.delete(doc(db, "tasks", t.id)); });
-        await batch.commit();
-        window.closeTaskModal();
-      }
-    }
+        btnInstall.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            btnInstall.classList.add('hidden');
+        });
 
-    window.openCollaboratorsManageModal = function() { window.renderManageCollaboratorsList(); document.getElementById('collaboratorsManageModal').classList.remove('hidden'); }
-    window.closeCollaboratorsManageModal = function() { document.getElementById('collaboratorsManageModal').classList.add('hidden'); }
-    window.renderManageCollaboratorsList = function() {
-      document.getElementById('manageCollaboratorsList').innerHTML = window.collaborators.map(c => `
-        <div class="flex items-center space-x-2 bg-slate-50 p-2 border border-slate-200 rounded-lg">
-          <input type="color" value="${c.bg}" onchange="updateCollaboratorColor('${c.id}', this.value)" class="w-7 h-7 rounded border cursor-pointer shadow-sm">
-          <input type="text" value="${c.name}" onchange="updateCollaboratorName('${c.id}', this.value)" class="flex-1 text-xs p-1.5 border border-slate-300 rounded font-bold">
-          <input type="text" value="${c.role}" onchange="updateCollaboratorRole('${c.id}', this.value)" class="w-24 sm:w-28 text-xs p-1.5 border border-slate-300 rounded text-slate-600">
-          <button onclick="removeCollaborator('${c.id}')" class="text-red-500 hover:text-red-700 p-1.5"><i class="fa-solid fa-trash-can"></i></button>
-        </div>`).join('');
-    }
-    window.addNewCollaborator = async function() {
-      const name = document.getElementById('newCollabName').value.trim();
-      const role = document.getElementById('newCollabRole').value.trim() || 'Collaboratore';
-      const bg = document.getElementById('newCollabColor').value || '#3b82f6';
-      if (!name) return alert('Inserisci il nome.');
-      const newId = 'c_' + Date.now();
-      window.activeCollaboratorFilters.push(newId);
-      await setDoc(doc(db, "collaborators", newId), { name, role, bg, text: '#ffffff' });
-      document.getElementById('newCollabName').value = ''; document.getElementById('newCollabRole').value = '';
-    }
-    window.updateCollaboratorColor = async function(id, bg) { await setDoc(doc(db, "collaborators", id), { bg }, { merge: true }); }
-    window.updateCollaboratorName = async function(id, name) { if (name.trim()) await setDoc(doc(db, "collaborators", id), { name }, { merge: true }); }
-    window.updateCollaboratorRole = async function(id, role) { await setDoc(doc(db, "collaborators", id), { role }, { merge: true }); }
-    window.removeCollaborator = async function(id) {
-      if (window.collaborators.length <= 1) return alert('Deve rimanere almeno un collaboratore.');
-      if (confirm('Eliminare collaboratore dal database?')) await deleteDoc(doc(db, "collaborators", id));
-    }
+        // State Management
+        let currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
 
-    window.openCategoriesManageModal = function() { window.renderManageCategoriesList(); document.getElementById('categoriesManageModal').classList.remove('hidden'); }
-    window.closeCategoriesManageModal = function() { document.getElementById('categoriesManageModal').classList.add('hidden'); }
-    window.renderManageCategoriesList = function() {
-      document.getElementById('manageCategoriesList').innerHTML = window.categories.map(cat => `
-        <div class="flex items-center space-x-2 bg-slate-50 p-2 border border-slate-200 rounded-lg">
-          <input type="text" value="${cat.name}" onchange="updateCategoryName('${cat.id}', this.value)" class="flex-1 text-xs p-1.5 border border-slate-300 rounded font-medium">
-          <button onclick="removeCategory('${cat.id}')" class="text-red-500 hover:text-red-700 p-1.5"><i class="fa-solid fa-trash-can"></i></button>
-        </div>`).join('');
-    }
-    window.addNewCategory = async function() {
-      const name = document.getElementById('newCategoryName').value.trim();
-      if (!name) return alert('Inserisci il nome.');
-      await setDoc(doc(db, "categories", 'cat_' + Date.now()), { name });
-      document.getElementById('newCategoryName').value = '';
-    }
-    window.updateCategoryName = async function(id, name) { if (name.trim()) await setDoc(doc(db, "categories", id), { name }, { merge: true }); }
-    window.removeCategory = async function(id) {
-      if (window.categories.length <= 1) return alert('Deve esserci almeno una tipologia.');
-      if (confirm('Eliminare questa tipologia?')) await deleteDoc(doc(db, "categories", id));
-    }
-  </script>
+        const daysWindowBefore = 180;
+        const daysWindowAfter = 365;
+        let activeDateString = formatDateKey(currentDate);
+
+        const pagesViewport = document.getElementById('pages-viewport');
+        const dateListContainer = document.getElementById('date-list-container');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+        const btnToday = document.getElementById('btn-today');
+        const btnPrev = document.getElementById('btn-prev');
+        const btnNext = document.getElementById('btn-next');
+        const currentPageLabel = document.getElementById('current-page-label');
+        const monthPicker = document.getElementById('month-picker');
+        const saveIndicator = document.getElementById('save-indicator');
+
+        function formatDateKey(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatSidebarDate(date) {
+            return date.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function initApp() {
+            if (useCloud && db) {
+                // Sincronizzazione in tempo reale con Firebase
+                db.ref('agendaData').on('value', (snapshot) => {
+                    globalAgendaData = snapshot.val() || {};
+                    refreshUI();
+                });
+            } else {
+                loadLocalData();
+                refreshUI();
+            }
+
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            sidebarClose.addEventListener('click', toggleSidebar);
+            sidebarBackdrop.addEventListener('click', toggleSidebar);
+            
+            btnToday.addEventListener('click', () => {
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                activeDateString = formatDateKey(today);
+                scrollToDate(activeDateString, true);
+                highlightSidebarItem(activeDateString);
+            });
+
+            btnPrev.addEventListener('click', () => navigatePages(-1));
+            btnNext.addEventListener('click', () => navigatePages(1));
+
+            monthPicker.value = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+            monthPicker.addEventListener('change', (e) => {
+                if (!e.target.value) return;
+                const [year, month] = e.target.value.split('-');
+                const target = new Date(parseInt(year), parseInt(month) - 1, 1);
+                activeDateString = formatDateKey(target);
+                renderPages();
+                scrollToDate(activeDateString, false);
+                highlightSidebarItem(activeDateString);
+            });
+
+            let scrollTimeout;
+            pagesViewport.addEventListener('scroll', () => {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    detectActivePageOnScroll();
+                }, 100);
+            });
+        }
+
+        function refreshUI() {
+            renderSidebarDates();
+            renderPages();
+            scrollToDate(activeDateString, false);
+            highlightSidebarItem(activeDateString);
+        }
+
+        function loadLocalData() {
+            globalAgendaData = {};
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - daysWindowBefore);
+            const totalDays = daysWindowBefore + daysWindowAfter;
+            for (let i = 0; i <= totalDays; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                const dateKey = formatDateKey(d);
+                const item = localStorage.getItem(`agenda_${dateKey}`);
+                if (item) {
+                    try { globalAgendaData[dateKey] = JSON.parse(item); } catch(e) {}
+                }
+            }
+        }
+
+        function toggleSidebar() {
+            const isOpen = sidebar.classList.contains('translate-x-0');
+            if (isOpen) {
+                sidebar.classList.remove('translate-x-0');
+                sidebar.classList.add('-translate-x-full');
+                sidebarBackdrop.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                sidebarBackdrop.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function renderSidebarDates() {
+            dateListContainer.innerHTML = '';
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - daysWindowBefore);
+            const totalDays = daysWindowBefore + daysWindowAfter;
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i <= totalDays; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                const dateKey = formatDateKey(d);
+                const isToday = dateKey === formatDateKey(new Date());
+
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition flex items-center justify-between group sidebar-item-${dateKey}`;
+                
+                const savedData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
+                const hasNotes = savedData.notes && savedData.notes.trim().length > 0;
+                const hasTasks = savedData.tasks && savedData.tasks.some(t => !t.completed);
+
+                let badgeHtml = '';
+                if (hasNotes || hasTasks) {
+                    badgeHtml = `<span class="w-2 h-2 rounded-full bg-sage-400 group-hover:bg-forest"></span>`;
+                }
+
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-2 truncate">
+                        <span class="w-2 h-2 rounded-full ${isToday ? 'bg-forest ring-4 ring-forest/20' : 'bg-transparent'}"></span>
+                        <span class="text-sage-800 capitalize truncate">${formatSidebarDate(d)}</span>
+                    </div>
+                    ${badgeHtml}
+                `;
+
+                btn.addEventListener('click', () => {
+                    activeDateString = dateKey;
+                    scrollToDate(dateKey, true);
+                    highlightSidebarItem(dateKey);
+                    if (window.innerWidth < 768) toggleSidebar();
+                });
+
+                fragment.appendChild(btn);
+            }
+            dateListContainer.appendChild(fragment);
+        }
+
+        function highlightSidebarItem(dateKey) {
+            document.querySelectorAll('#date-list-container button').forEach(el => {
+                el.classList.remove('bg-sage-200/70', 'font-semibold', 'text-forest');
+            });
+            const activeBtn = document.querySelector(`.sidebar-item-${dateKey}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-sage-200/70', 'font-semibold', 'text-forest');
+                activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            const [y, m, d] = dateKey.split('-');
+            const dateObj = new Date(y, m - 1, d);
+            currentPageLabel.textContent = dateObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function renderPages() {
+            pagesViewport.innerHTML = '';
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - daysWindowBefore);
+            const totalDays = daysWindowBefore + daysWindowAfter;
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i <= totalDays; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                const dateKey = formatDateKey(d);
+
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'day-page h-full flex-shrink-0 snap-start overflow-y-auto p-4 sm:p-6 md:p-8 flex justify-center';
+                pageDiv.setAttribute('data-date', dateKey);
+
+                const dayData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
+                const isToday = dateKey === formatDateKey(new Date());
+
+                pageDiv.innerHTML = `
+                    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-sage-200 flex flex-col overflow-hidden mb-12">
+                        <div class="bg-gradient-to-r from-forest to-forest-light text-white p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl pointer-events-none">
+                                <i class="fa-solid fa-leaf"></i>
+                            </div>
+                            <div class="flex justify-between items-start z-10">
+                                <div>
+                                    <span class="text-xs uppercase tracking-widest text-sage-200 font-medium">${d.toLocaleDateString('it-IT', { weekday: 'long' })}</span>
+                                    <h2 class="text-2xl sm:text-3xl font-bold mt-0.5">${d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</h2>
+                                </div>
+                                ${isToday ? '<span class="bg-sage-400 text-forest-dark text-xs font-bold px-3 py-1 rounded-full shadow-sm">Oggi</span>' : ''}
+                            </div>
+                        </div>
+
+                        <div class="p-5 sm:p-6 flex-1 flex flex-col space-y-6">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
+                                        <i class="fa-solid fa-list-check text-forest"></i>
+                                        <span>Attività del Giorno</span>
+                                    </h3>
+                                    <span class="text-xs text-sage-500 task-count">0 completate</span>
+                                </div>
+                                <div class="task-list space-y-2 mb-3"></div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" placeholder="Aggiungi una nuova attività..." class="task-input flex-1 bg-sage-50 border border-sage-200 rounded-xl px-4 py-2.5 text-sm text-sage-900 focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition">
+                                    <button class="add-task-btn bg-forest hover:bg-forest-light text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm flex items-center justify-center">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <hr class="border-sage-100">
+
+                            <div class="flex-1 flex flex-col">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="text-sm font-semibold text-sage-800 uppercase tracking-wider flex items-center space-x-2">
+                                        <i class="fa-solid fa-pen-nib text-forest"></i>
+                                        <span>Note e Appunti</span>
+                                    </h3>
+                                    <span class="text-xs text-sage-400 font-normal">Salvataggio automatico</span>
+                                </div>
+                                <textarea 
+                                    class="notes-textarea w-full flex-1 min-h-[180px] bg-sage-50/50 border border-sage-200 rounded-xl p-4 text-sm text-sage-900 focus:outline-none focus:ring-2 focus:ring-forest focus:bg-white transition resize-y leading-relaxed" 
+                                    placeholder="Scrivi qui i tuoi appunti, riflessioni o impegni per la giornata...">${escapeHTML(dayData.notes || '')}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                setupPageInteractions(pageDiv, dateKey);
+                fragment.appendChild(pageDiv);
+            }
+
+            pagesViewport.appendChild(fragment);
+        }
+
+        function setupPageInteractions(pageElement, dateKey) {
+            const textarea = pageElement.querySelector('.notes-textarea');
+            const taskList = pageElement.querySelector('.task-list');
+            const taskInput = pageElement.querySelector('.task-input');
+            const addTaskBtn = pageElement.querySelector('.add-task-btn');
+            const taskCount = pageElement.querySelector('.task-count');
+
+            const currentData = globalAgendaData[dateKey] || { notes: '', tasks: [] };
+            renderTasks(taskList, taskCount, currentData.tasks || [], dateKey);
+
+            let saveTimeout;
+            textarea.addEventListener('input', () => {
+                showSaveStatus('Salvataggio...', 'text-sage-500');
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    if (!globalAgendaData[dateKey]) globalAgendaData[dateKey] = { notes: '', tasks: [] };
+                    globalAgendaData[dateKey].notes = textarea.value;
+                    saveDayData(dateKey, globalAgendaData[dateKey]);
+                    showSaveStatus('Salvato', 'text-sage-300');
+                    updateSidebarBadge(dateKey);
+                }, 500);
+            });
+
+            const handleAddTask = () => {
+                const text = taskInput.value.trim();
+                if (!text) return;
+                if (!globalAgendaData[dateKey]) globalAgendaData[dateKey] = { notes: '', tasks: [] };
+                if (!globalAgendaData[dateKey].tasks) globalAgendaData[dateKey].tasks = [];
+                globalAgendaData[dateKey].tasks.push({ id: Date.now(), text: text, completed: false });
+                saveDayData(dateKey, globalAgendaData[dateKey]);
+                taskInput.value = '';
+                renderTasks(taskList, taskCount, globalAgendaData[dateKey].tasks, dateKey);
+                updateSidebarBadge(dateKey);
+            };
+
+            addTaskBtn.addEventListener('click', handleAddTask);
+            taskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleAddTask();
+            });
+        }
+
+        function renderTasks(container, counterEl, tasks, dateKey) {
+            container.innerHTML = '';
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = `<p class="text-xs text-sage-400 italic py-1">Nessuna attività inserita.</p>`;
+                counterEl.textContent = '0 completate';
+                return;
+            }
+
+            const completedCount = tasks.filter(t => t.completed).length;
+            counterEl.textContent = `${completedCount}/${tasks.length} completate`;
+
+            tasks.forEach((task, index) => {
+                const taskRow = document.createElement('div');
+                taskRow.className = `flex items-center justify-between bg-sage-50 border border-sage-100 px-3 py-2 rounded-xl transition ${task.completed ? 'opacity-60 bg-sage-100/50' : ''}`;
+                
+                taskRow.innerHTML = `
+                    <label class="flex items-center space-x-3 flex-1 cursor-pointer overflow-hidden">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox w-4 h-4 text-forest rounded border-sage-300 focus:ring-forest cursor-pointer">
+                        <span class="text-sm text-sage-800 truncate ${task.completed ? 'line-through text-sage-400' : ''}">${escapeHTML(task.text)}</span>
+                    </label>
+                    <button class="delete-task-btn text-sage-400 hover:text-red-500 p-1.5 transition ml-2">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+
+                const checkbox = taskRow.querySelector('.task-checkbox');
+                checkbox.addEventListener('change', () => {
+                    if (globalAgendaData[dateKey] && globalAgendaData[dateKey].tasks[index]) {
+                        globalAgendaData[dateKey].tasks[index].completed = checkbox.checked;
+                        saveDayData(dateKey, globalAgendaData[dateKey]);
+                        renderTasks(container, counterEl, globalAgendaData[dateKey].tasks, dateKey);
+                        updateSidebarBadge(dateKey);
+                    }
+                });
+
+                const deleteBtn = taskRow.querySelector('.delete-task-btn');
+                deleteBtn.addEventListener('click', () => {
+                    if (globalAgendaData[dateKey] && globalAgendaData[dateKey].tasks[index]) {
+                        globalAgendaData[dateKey].tasks.splice(index, 1);
+                        saveDayData(dateKey, globalAgendaData[dateKey]);
+                        renderTasks(container, counterEl, globalAgendaData[dateKey].tasks, dateKey);
+                        updateSidebarBadge(dateKey);
+                    }
+                });
+
+                container.appendChild(taskRow);
+            });
+        }
+
+        function updateSidebarBadge(dateKey) {
+            const btn = document.querySelector(`.sidebar-item-${dateKey}`);
+            if (!btn) return;
+            const data = globalAgendaData[dateKey] || { notes: '', tasks: [] };
+            const hasNotes = data.notes && data.notes.trim().length > 0;
+            const hasTasks = data.tasks && data.tasks.some(t => !t.completed);
+
+            let indicator = btn.querySelector('.w-2.h-2.rounded-full:not(.bg-forest)');
+            if (hasNotes || hasTasks) {
+                if (!indicator) {
+                    const span = document.createElement('span');
+                    span.className = 'w-2 h-2 rounded-full bg-sage-400 group-hover:bg-forest';
+                    btn.appendChild(span);
+                }
+            } else {
+                if (indicator) indicator.remove();
+            }
+        }
+
+        function saveDayData(dateKey, data) {
+            if (useCloud && db) {
+                db.ref(`agendaData/${dateKey}`).set(data).catch(err => console.error("Errore salvataggio cloud:", err));
+            } else {
+                localStorage.setItem(`agenda_${dateKey}`, JSON.stringify(data));
+            }
+        }
+
+        function scrollToDate(dateKey, smooth = true) {
+            const targetPage = pagesViewport.querySelector(`[data-date="${dateKey}"]`);
+            if (targetPage) {
+                pagesViewport.scrollTo({
+                    left: targetPage.offsetLeft,
+                    behavior: smooth ? 'smooth' : 'auto'
+                });
+                activeDateString = dateKey;
+            }
+        }
+
+        function navigatePages(direction) {
+            const [y, m, d] = activeDateString.split('-');
+            const dateObj = new Date(y, m - 1, d);
+            dateObj.setDate(dateObj.getDate() + direction);
+            const newKey = formatDateKey(dateObj);
+            
+            let targetPage = pagesViewport.querySelector(`[data-date="${newKey}"]`);
+            if (!targetPage) {
+                renderPages();
+                targetPage = pagesViewport.querySelector(`[data-date="${newKey}"]`);
+            }
+            if (targetPage) {
+                activeDateString = newKey;
+                scrollToDate(newKey, true);
+                highlightSidebarItem(newKey);
+            }
+        }
+
+        function detectActivePageOnScroll() {
+            const scrollLeft = pagesViewport.scrollLeft;
+            const pages = pagesViewport.querySelectorAll('.day-page');
+            let closestPage = null;
+            let minDistance = Infinity;
+
+            pages.forEach(page => {
+                const distance = Math.abs(page.offsetLeft - scrollLeft);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPage = page;
+                }
+            });
+
+            if (closestPage) {
+                const dateKey = closestPage.getAttribute('data-date');
+                if (dateKey && dateKey !== activeDateString) {
+                    activeDateString = dateKey;
+                    highlightSidebarItem(dateKey);
+                }
+            }
+        }
+
+        function showSaveStatus(text, colorClass) {
+            saveIndicator.className = `text-xs ${colorClass} hidden sm:flex items-center space-x-1 bg-forest-dark px-2.5 py-1 rounded-full transition`;
+            saveIndicator.innerHTML = `<i class="fa-solid fa-check text-xs"></i><span>${text}</span>`;
+            saveIndicator.classList.remove('hidden');
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        window.onload = initApp;
+    </script>
 </body>
 </html>
